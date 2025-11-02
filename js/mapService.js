@@ -9,7 +9,6 @@ export let map = null;
 export function initMap() {
     map = L.map('map', {
         zoomControl: false,
-        doubleClickZoom: false // ⬅️ ¡AÑADE ESTA LÍNEA!
     }).setView([19.830, -90.528], 13);
     // ...
     

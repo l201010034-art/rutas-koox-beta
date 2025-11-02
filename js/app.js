@@ -147,11 +147,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     // ⬆️⬆️ FIN DEL MÓDULO ⬆️⬆️
 
-// js/app.js (en DOMContentLoaded, después de initMap())
-
-    // ⬇️⬇️ INICIO DEL MÓDULO CORREGIDO ⬇️⬇️
-    map.on('dblclick', (e) => { // ⬅️ ¡EVENTO CAMBIADO!
-        // 1. (Opcional) Prevenir cualquier comportamiento por defecto
+// ... (justo después de initMap())
+    map.on('contextmenu', (e) => { // ⬅️ CAMBIADO DE VUELTA
+        // 1. Prevenir el menú contextual (clic derecho)
         e.originalEvent.preventDefault(); 
         // ...
 
