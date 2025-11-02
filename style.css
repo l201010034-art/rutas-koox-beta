@@ -462,3 +462,10 @@ body, html {
     font-weight: bold;
     font-size: 0.9em; /* Un poco más pequeño para que quepa "Transbordo: 120:00" */
 }
+/* js/style.css (o style.min.css) */
+
+#controles-nav #btnFinalizar {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}

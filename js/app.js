@@ -843,14 +843,26 @@ function pasoAnterior() {
     }
 }
 
+// js/app.js
+
 function mostrarPaso(indice) {
     const paso = rutaCompletaPlan[indice];
     instruccionActualEl.textContent = paso.texto;
     btnAnterior.disabled = (indice === 0);
+    
+    // ⬇️⬇️ INICIO DE LA CORRECCIÓN ⬇️⬇️
     const esUltimoPaso = (indice === rutaCompletaPlan.length - 1);
+    
     btnSiguiente.disabled = esUltimoPaso;
-    btnFinalizar.style.display = esUltimoPaso ? 'block' : 'none';
-    btnSiguiente.style.display = esUltimoPaso ? 'none' : 'block';
+    btnFinalizar.style.display = 'block'; // ⬅️ CORRECCIÓN: Mostrar SIEMPRE
+    
+    // Simplemente ocultamos "Siguiente" en el último paso
+    if (esUltimoPaso) {
+        btnSiguiente.style.display = 'none';
+    } else {
+        btnSiguiente.style.display = 'block'; // O 'inline-block' si prefieres
+    }
+    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
     
     const puntoDePartida = puntoInicio || paraderoInicioCercano;
     const bounds = dibujarPaso(paso, puntoDePartida); 
