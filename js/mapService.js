@@ -217,6 +217,7 @@ export function dibujarPaso(paso, puntoInicio) {
  */
 export function dibujarRutaExplorar(ruta, paraderos) {
     limpiarCapasDeRuta();
+    marcadores.clearLayers(); // ⬅️ ¡AÑADE ESTA LÍNEA!
     if (!ruta) return;
 
     // 1. Dibujar la línea de la ruta

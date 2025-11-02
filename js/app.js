@@ -588,6 +588,7 @@ function handleExplorarRuta(rutaId) {
 function limpiarMapa() {
     dibujarPlan([]);
     limpiarCapasDeRuta();
+    marcadores.clearLayers(); // ⬅️ ¡AÑADE ESTA LÍNEA!
 
     // ⬇️⬇️ CORRECCIÓN AÑADIDA ⬇️⬇️
     // Esto resetea el texto del panel de "Opciones de ruta"
@@ -1361,6 +1362,7 @@ function handleParaderosCercanos() {
 
     // 1. Limpiar el mapa y controles
     limpiarCapasDeRuta(); 
+    marcadores.clearLayers(); // ⬅️ ¡AÑADE ESTA LÍNEA!
     if (choicesRuta) {
         choicesRuta.clearInput();
         choicesRuta.removeActiveItems();
