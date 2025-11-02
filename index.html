@@ -11,9 +11,29 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <link rel="stylesheet" href="style.min.css" />
+    <style>
+        /* Reglas críticas para evitar el "Flash of Unstyled Content" (FOUC) */
+
+        /* 1. Define la clase 'oculto' para que JS pueda usarla */
+        .oculto { 
+            display: none !important; 
+        }
+
+        /* 2. Posiciona los paneles para que no se apilen al cargar */
+        #panel-control, #panel-navegacion, #info-modal {
+            position: absolute;
+        }
+
+        /* 3. ¡YA NO OCULTAMOS LOS PANELES POR ID AQUÍ! */
+        /* El JavaScript (app.js) se encarga de añadir '.oculto' 
+        a los paneles correctos en DOMContentLoaded.
+        */
+    </style>
 </head>
 <body>
-
+<div id="offline-indicator" class="oculto">
+        Estás sin conexión. La app seguirá funcionando.
+    </div>
     <div id="map"></div>
 
     <div id="panel-control" class="oculto">
@@ -58,6 +78,12 @@
 
         <div id="panel-explorar" class="oculto">
             <div id="controles-explorar">
+                
+                <div class="control-grupo">
+                    <button id="btnParaderosCercanos" class="btn-primario-full">
+                        📍 Ver Paraderos Cerca de Mí
+                    </button>
+                </div>
                 <div class="control-grupo">
                     <label for="selectRuta">Selecciona una Ruta:</label>
                     <select id="selectRuta">

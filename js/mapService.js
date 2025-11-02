@@ -35,43 +35,56 @@ export function crearMarcadorUsuario(latlng) {
     return userMarker;
 }
 
+
+// js/mapService.js
+
 export function dibujarPlan(planes) {
-    limpiarCapasDeRuta();
+    // limpiarCapasDeRuta(); // <-- ¡REMOVIDO! La limpieza se hace en app.js
     
     const capasDeRuta = [];
+ 
     planes.forEach(plan => {
-        plan.forEach(paso => {
-            if (paso.tipo === 'bus') {
-                capasDeRuta.push(paso.ruta);
-            }
+        const pasosBus = plan.filter(paso => paso.tipo === 'bus');
+        pasosBus.forEach(paso => {
+            capasDeRuta.push(paso.ruta);
         });
     });
     
     if (capasDeRuta.length === 0) return;
 
+    // Dibujar las líneas de bus
     const rutasAGraficar = turf.featureCollection(capasDeRuta);
     
     capaRutaBus = L.geoJSON(rutasAGraficar, {
         style: (feature) => {
+            // ... (La lógica de color de las líneas sigue igual)
             let color = "#" + Math.floor(Math.random()*16777215).toString(16);
             if (planes.length === 1) {
                 const plan = planes[0];
-                if (plan[1] && feature.properties.id === plan[1].ruta.properties.id) color = "#FF0000";
-                if (plan[3] && feature.properties.id === plan[3].ruta.properties.id) color = "#0052FF";
-                if (plan[5] && feature.properties.id === plan[5].ruta.properties.id) color = "#00A86B";
-                if (plan[7] && feature.properties.id === plan[7].ruta.properties.id) color = "#FF8C00";
+                const paso1 = plan.find(p => p.tipo === 'bus');
+                const paso2 = plan.filter(p => p.tipo === 'bus')[1];
+                const paso3 = plan.filter(p => p.tipo === 'bus')[2];
+                const paso4 = plan.filter(p => p.tipo === 'bus')[3];
+
+                if (paso1 && feature.properties.id === paso1.ruta.properties.id) color = "#FF0000"; // Rojo
+                if (paso2 && feature.properties.id === paso2.ruta.properties.id) color = "#0052FF"; // Azul
+                if (paso3 && feature.properties.id === paso3.ruta.properties.id) color = "#00A86B"; // Verde
+                if (paso4 && feature.properties.id === paso4.ruta.properties.id) color = "#FF8C00"; // Naranja
             }
             return { color, weight: 5, opacity: 0.7 };
         }
     }).addTo(map);
     
-    if (rutasAGraficar.features.length > 0) {
+    // Enfocar el mapa solo en las líneas
+    if (capaRutaBus.getBounds().isValid()) {
         map.fitBounds(capaRutaBus.getBounds().pad(0.1));
     }
 }
 
+// js/mapService.js
+
 export function limpiarCapasDeRuta() {
-    marcadores.clearLayers();
+    // marcadores.clearLayers(); // <-- ¡REMOVIDO!
     if (capaRutaBus) {
         map.removeLayer(capaRutaBus);
         capaRutaBus = null;
@@ -84,61 +97,112 @@ export function limpiarCapasDeRuta() {
     }
 }
 
+// js/mapService.js
+
+// ⬇️⬇️ INICIO DEL MÓDULO DE ICONOS ⬇️⬇️
+
+// Definimos y EXPORTAMOS los iconos para usarlos en app.js
+export const iconoParadero = L.divIcon({ 
+    className: 'paradero-icono-koox', // Azul
+    iconSize: [16, 16] 
+});
+
+export const iconoTransbordo = L.divIcon({ 
+    className: 'paradero-icono-transbordo', // Naranja
+    iconSize: [16, 16] 
+});
+
+export const iconoDestino = L.divIcon({ 
+    className: 'paradero-icono-destino', // ⬅️ ¡NUEVO! (Será rojo)
+    iconSize: [16, 16] 
+});
+
+/**
+ * (MÓDULO ACTUALIZADO) Helper para crear el contenido del popup inteligente
+ * Ahora también es EXPORTADO
+ */
+export function crearPopupInteligente(paradero, tituloEspecial = null) {
+    const nombreParadero = paradero.properties.nombre || paradero.properties.Name;
+    const paraderoId = paradero.properties.originalIndex;
+    const rutasEnParadero = (paradero.properties.rutas || []).join(', ');
+
+    let tituloHTML = `<div style="font-size: 1.1em; font-weight: bold; margin-bottom: 5px;">${nombreParadero}</div>`;
+
+    if (tituloEspecial) {
+        // Asignamos un color basado en el título
+        let color = "#333";
+        if (tituloEspecial.includes("Subir") || tituloEspecial.includes("Inicio")) color = "#007bff"; // Azul
+        if (tituloEspecial.includes("Transbordo")) color = "#E69500"; // Naranja
+        if (tituloEspecial.includes("Destino") || tituloEspecial.includes("Bajar")) color = "#dc3545"; // Rojo
+
+        tituloHTML = `
+            <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 5px; color: ${color};">${tituloEspecial}</div>
+            <div style="font-size: 1.0em; font-weight: bold; margin-bottom: 5px;">${nombreParadero}</div>`;
+    }
+
+    return `
+        ${tituloHTML}
+        <strong style="font-size: 0.9em;">Rutas:</strong>
+        <p style="font-size: 0.9em; margin: 4px 0;">${rutasEnParadero || 'N/A'}</p>
+        <button class="btn-popup btn-ver-rutas-paradero" data-paradero-id="${paraderoId}">
+            Ver detalles
+        </button>
+    `;
+}
+// ⬆️⬆️ FIN DEL MÓDULO DE ICONOS ⬆️⬆️
+
+
+// js/mapService.js
+
 export function dibujarPaso(paso, puntoInicio) {
-    limpiarCapasDeRuta();
+    limpiarCapasDeRuta(); // Limpia líneas
+    marcadores.clearLayers(); // ⬅️ ¡AÑADIDO! Limpia marcadores viejos
     
-    const inicioCoords = puntoInicio.geometry.coordinates; // [lon, lat]
-    const inicioLatLng = [inicioCoords[1], inicioCoords[0]]; // [lat, lon]
+    const inicioCoords = puntoInicio.geometry.coordinates; 
+    const inicioLatLng = [inicioCoords[1], inicioCoords[0]]; 
 
     let bounds;
     switch(paso.tipo) {
         case 'caminar':
+            // ... (el resto del switch case sigue igual, pero
+            // ahora usará los iconos que definimos arriba)
             const finCoordsCaminar = paso.paradero.geometry.coordinates;
-            const finLatLng = [finCoordsCaminar[1], finCoordsCaminar[0]]; // [lat, lon]
-            
-            capaRutaCaminar = L.polyline([inicioLatLng, finLatLng], {
-                color: 'blue',
-                weight: 5,
-                opacity: 0.7,
-                dashArray: '10, 10'
-            }).addTo(map);
-            
-            L.marker(finLatLng).addTo(marcadores).bindPopup(`Paradero: ${paso.paradero.properties.nombre}`);
+            const finLatLng = [finCoordsCaminar[1], finCoordsCaminar[0]];
+            capaRutaCaminar = L.polyline([inicioLatLng, finLatLng], { /* ... */ }).addTo(map);
+            L.marker(finLatLng, { icon: iconoParadero }) // Usa icono azul
+             .addTo(marcadores)
+             .bindPopup(crearPopupInteligente(paso.paradero, "Dirígete aquí"));
             bounds = L.latLngBounds(inicioLatLng, finLatLng);
             break;
             
         case 'bus':
-            capaRutaBus = L.geoJSON(paso.ruta, {
-                style: { color: "#FF0000", weight: 5, opacity: 0.8 }
-            }).addTo(map);
-            
-            const pInicioCoords = paso.paraderoInicio.geometry.coordinates;
-            const pFinCoords = paso.paraderoFin.geometry.coordinates;
-            const pInicio = [pInicioCoords[1], pInicioCoords[0]];
-            const pFin = [pFinCoords[1], pFinCoords[0]];
-
-            L.marker(pInicio).addTo(marcadores).bindPopup(`Subir en: ${paso.paraderoInicio.properties.nombre}`);
-            L.marker(pFin).addTo(marcadores).bindPopup(`Bajar en: ${paso.paraderoFin.properties.nombre}`);
+            capaRutaBus = L.geoJSON(paso.ruta, { /* ... */ }).addTo(map);
+            const pInicio = [paso.paraderoInicio.geometry.coordinates[1], paso.paraderoInicio.geometry.coordinates[0]];
+            const pFin = [paso.paraderoFin.geometry.coordinates[1], paso.paraderoFin.geometry.coordinates[0]];
+            L.marker(pInicio, { icon: iconoParadero }) // Usa icono azul
+             .addTo(marcadores)
+             .bindPopup(crearPopupInteligente(paso.paraderoInicio, "Subir aquí"));
+            L.marker(pFin, { icon: iconoDestino }) // ⬅️ ¡USA ICONO ROJO PARA BAJAR!
+             .addTo(marcadores)
+             .bindPopup(crearPopupInteligente(paso.paraderoFin, "Bajar aquí"));
             bounds = capaRutaBus.getBounds();
             break;
         
         case 'transbordo':
-            const pTransbordoCoords = paso.paradero.geometry.coordinates;
-            const pTransbordo = [pTransbordoCoords[1], pTransbordoCoords[0]];
-
-            L.marker(pTransbordo).addTo(marcadores)
-                .bindPopup(`Transbordo: ${paso.paradero.properties.nombre}`)
-                .openPopup();
+            const pTransbordo = [paso.paradero.geometry.coordinates[1], paso.paradero.geometry.coordinates[0]];
+            L.marker(pTransbordo, { icon: iconoTransbordo }) // Usa icono naranja
+             .addTo(marcadores)
+             .bindPopup(crearPopupInteligente(paso.paradero, "Transbordo Aquí"))
+             .openPopup();
             map.setView(pTransbordo, 17);
             break;
 
         case 'fin':
-            const pDestinoCoords = paso.paradero.geometry.coordinates;
-            const pDestino = [pDestinoCoords[1], pDestinoCoords[0]];
-
-            L.marker(pDestino).addTo(marcadores)
-                .bindPopup("¡Destino!")
-                .openPopup();
+            const pDestino = [paso.paradero.geometry.coordinates[1], paso.paradero.geometry.coordinates[0]];
+            L.marker(pDestino, { icon: iconoDestino }) // ⬅️ ¡USA ICONO ROJO!
+             .addTo(marcadores)
+             .bindPopup(crearPopupInteligente(paso.paradero, "¡Destino!"))
+             .openPopup();
             map.setView(pDestino, 17);
             break;
     }
@@ -162,14 +226,35 @@ export function dibujarRutaExplorar(ruta, paraderos) {
     // 2. Dibujar los marcadores de los paraderos
     const paraderosFeatures = paraderos.map(p => {
         const coords = p.geometry.coordinates;
-        const latLng = [coords[1], coords[0]]; // Corregido para [lat, lon]
-        return L.marker(latLng, {
-            icon: L.divIcon({
-                className: 'paradero-marker',
-                html: '<div style="background-color: #fff; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #555;"></div>',
-                iconSize: [14, 14]
-            })
-        }).bindPopup(p.properties.nombre || p.properties.Name); // Aseguramos compatibilidad
+        const latLng = [coords[1], coords[0]];
+        const nombreParadero = p.properties.nombre || p.properties.Name;
+        const paraderoId = p.properties.originalIndex;
+        
+        // ⬇️⬇️ INICIO DEL MÓDULO (Icono + Popup) ⬇️⬇️
+
+        // 2A. Usar el nuevo ícono llamativo de nuestro CSS
+        const icono = L.divIcon({
+            className: 'paradero-icono-koox', // <-- ¡Nuestra nueva clase CSS!
+            iconSize: [16, 16]
+        });
+
+        // 2B. Crear el contenido del Popup "Inteligente"
+        // Obtenemos la lista de rutas que pasan por este paradero
+        const rutasEnParadero = (p.properties.rutas || []).join(', ');
+        
+        const popupHTML = `
+            <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 5px;">${nombreParadero}</div>
+            <strong style="font-size: 0.9em;">Rutas:</strong>
+            <p style="font-size: 0.9em; margin: 4px 0;">${rutasEnParadero || 'N/A'}</p>
+            <button class="btn-popup btn-ver-rutas-paradero" data-paradero-id="${paraderoId}">
+                Ver detalles
+            </button>
+        `;
+        // ⬆️⬆️ FIN DEL MÓDULO ⬆️⬆️
+
+        // 2C. Crear el marcador
+        return L.marker(latLng, { icon: icono })
+                .bindPopup(popupHTML);
     });
     
     // Añadirlos a la capa de marcadores

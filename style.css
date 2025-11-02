@@ -469,3 +469,201 @@ body, html {
     color: white;
     border-color: #dc3545;
 }
+.panel-acciones {
+    display: flex;
+    flex-direction: column; /* ⬅️ ¡AÑADE ESTA LÍNEA! */
+    gap: 10px;
+    margin-top: 15px;
+}
+
+/* Hacemos que el botón "Iniciar Ruta" que está DENTRO 
+  del panel ocupe el espacio principal
+*/
+.panel-acciones #btnIniciarRuta {
+    flex-grow: 1; /* Ocupa el espacio restante */
+    padding: 12px;
+    font-size: 1em;
+    font-weight: bold;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #007bff; /* Color primario */
+}
+.panel-acciones #btnIniciarRuta:hover {
+    background-color: #0056b3;
+}
+
+
+/* Estilo para el botón secundario "Guardar Favorito" */
+.btn-secundario {
+    padding: 12px;
+    font-size: 1em;
+    font-weight: bold;
+    color: #333;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap; /* Evita que el texto se rompa */
+}
+.btn-secundario:hover {
+    background-color: #e0e0e0;
+}
+
+
+/* --- Estilos para Items Favoritos (con botón 'X') --- */
+
+.favorito-item {
+    position: relative; /* Clave para posicionar el botón 'X' */
+    cursor: pointer;
+}
+
+.delete-favorito {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    font-size: 1.5em; /* Tamaño de la 'X' */
+    color: #aaa;
+    font-weight: bold;
+    line-height: 1;
+    padding: 5px;
+    cursor: pointer;
+    z-index: 10; /* Se asegura de que esté por encima */
+}
+.delete-favorito:hover {
+    color: #dc3545; /* Rojo al pasar el mouse */
+}
+
+/* --- Estilo para Botón de Acción en Panel Explorar --- */
+.btn-primario-full {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+    font-weight: bold;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #007bff; /* Color primario */
+}
+.btn-primario-full:hover {
+    background-color: #0056b3;
+}
+.btn-primario-full:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* --- Estilo para Indicador Offline --- */
+#offline-indicator {
+    position: fixed; /* Se mantiene fijo en la pantalla */
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #333; /* Un gris oscuro */
+    color: white;
+    padding: 8px;
+    text-align: center;
+    font-size: 0.9em;
+    font-weight: bold;
+    z-index: 9999; /* Por encima de todo */
+    
+    /* Transición para aparecer suavemente */
+    transform: translateY(100%); /* Oculto por defecto */
+    transition: transform 0.3s ease;
+}
+
+/* Cuando SÍ tiene la clase 'oculto', se esconde */
+#offline-indicator.oculto {
+    transform: translateY(100%);
+}
+
+/* Cuando NO tiene 'oculto', aparece */
+#offline-indicator:not(.oculto) {
+    transform: translateY(0);
+}
+
+/* --- Estilo para Icono de Paradero (Llamativo) --- */
+.paradero-icono-koox {
+    background-color: #007bff; /* Azul Koox */
+    border: 3px solid white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    
+    /* Pequeño punto interior para que parezca un objetivo */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.paradero-icono-koox::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background-color: white;
+    border-radius: 50%;
+}
+
+/* --- Estilo para Icono de Transbordo (Llamativo) --- */
+.paradero-icono-transbordo {
+    background-color: #ffc107; /* ⬅️ Color Naranja/Amarillo */
+    border: 3px solid white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    
+    /* Pequeño punto interior */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.paradero-icono-transbordo::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background-color: white;
+    border-radius: 50%;
+}
+
+/* --- Estilo para el Botón DENTRO del Popup --- */
+.btn-popup {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: white;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+.btn-popup:hover {
+    background-color: #0056b3;
+}
+
+/* ⬇️⬇️ ESTE ES EL BLOQUE QUE FALTABA ⬇️⬇️ */
+/* --- Estilo para Icono de Destino (Llamativo) --- */
+.paradero-icono-destino {
+    background-color: #dc3545; /* ⬅️ Color Rojo */
+    border: 3px solid white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    
+    /* Pequeño punto interior */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.paradero-icono-destino::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background-color: white;
+    border-radius: 50%;
+}

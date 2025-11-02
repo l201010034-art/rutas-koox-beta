@@ -1,7 +1,11 @@
 // js/app.js
 
 // 1. IMPORTACIÓN CORREGIDA
-import { initMap, crearMarcadorUsuario, dibujarPlan, dibujarPaso, marcadores, map, dibujarRutaExplorar, limpiarCapasDeRuta } from './mapService.js';
+import { 
+    initMap, crearMarcadorUsuario, dibujarPlan, dibujarPaso, marcadores, map, 
+    dibujarRutaExplorar, limpiarCapasDeRuta, 
+    crearPopupInteligente, iconoParadero, iconoTransbordo, iconoDestino 
+} from './mapService.js';
 import { getUbicacionUsuario, iniciarWatchLocation, detenerWatchLocation } from './locationService.js';
 import { encontrarRutaCompleta, crearMapaRutas, linkParaderosARutas } from './routeFinder.js';
 // js/app.js
@@ -25,6 +29,8 @@ let choicesDestino = null;
 let distanciaTotalRuta = 0;
 let distanciaRestanteEl, tiempoEsperaEl, tiempoViajeEl;
 let choicesRuta = null;
+let btnParaderosCercanos;
+let offlineIndicatorEl = null;
 
 // ⬇️⬇️ NUEVAS VARIABLES PARA MODO MANUAL Y GPS INICIAL ⬇️⬇️
 let choicesInicioManual = null;
@@ -70,6 +76,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     infoModal = document.getElementById('info-modal');
     btnCloseModal = document.getElementById('btnCloseModal');
     tiempoViajeEl = document.getElementById('tiempo-viaje');
+    btnParaderosCercanos = document.getElementById('btnParaderosCercanos');
+
+    // ⬇️⬇️ INICIO DEL MÓDULO OFFLINE ⬇️⬇️
+    offlineIndicatorEl = document.getElementById('offline-indicator');
+    
+    // Función para mostrar/ocultar el banner
+    const actualizarEstadoOffline = () => {
+        if (!navigator.onLine) {
+            offlineIndicatorEl.classList.remove('oculto');
+        } else {
+            offlineIndicatorEl.classList.add('oculto');
+        }
+    };
+    
+    // Listeners que detectan cambios de conexión
+    window.addEventListener('offline', actualizarEstadoOffline);
+    window.addEventListener('online', actualizarEstadoOffline);
+    
+    // Comprobar el estado al cargar la app
+    actualizarEstadoOffline();
+    // ⬆️⬆️ FIN DEL MÓDULO OFFLINE ⬆️⬆️
 
     // ⬇️⬇️ ASIGNACIÓN DE NUEVOS ELEMENTOS DEL DOM ⬇️⬇️
     selectInicioManual = document.getElementById('selectInicioManual'); // (de index.html corregido)
@@ -77,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     controlSelectInicio = document.getElementById('control-select-inicio');
     
     // Conectamos TODOS los eventos principales aquí
+    btnParaderosCercanos.addEventListener('click', handleParaderosCercanos);
     panelToggle.addEventListener('click', togglePanel);
     btnLimpiar.addEventListener('click', limpiarMapa);
     btnIniciarRuta.addEventListener('click', iniciarRutaProgresiva);
@@ -103,6 +131,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     initMap(); 
+
+    // js/app.js (en DOMContentLoaded, después de initMap())
+
+    // ⬇️⬇️ INICIO DEL MÓDULO: LÓGICA DE POPUP INTELIGENTE ⬇️⬇️
+    map.on('popupopen', (e) => {
+        // Esto se dispara cada vez que se abre un popup
+        const popupEl = e.popup.getElement();
+        const btn = popupEl.querySelector('.btn-ver-rutas-paradero');
+
+        if (btn) {
+            // Si el popup tiene nuestro botón, le añadimos el listener
+            btn.addEventListener('click', handleMostrarRutasDeParadero);
+        }
+    });
+    // ⬆️⬆️ FIN DEL MÓDULO ⬆️⬆️
+
+// js/app.js (en DOMContentLoaded, después de initMap())
+
+    // ⬇️⬇️ INICIO DEL MÓDULO CORREGIDO ⬇️⬇️
+    map.on('contextmenu', (e) => {
+        // 1. Prevenir el menú contextual (el menú de clic derecho del navegador)
+        e.originalEvent.preventDefault();
+
+        // 2. Comprobar si tenemos un punto de inicio
+        if (!paraderoInicioCercano) {
+            alert("Por favor, selecciona un punto de inicio o espera a que tu GPS se active antes de fijar un destino.");
+            return;
+        }
+
+        console.log("Clic largo detectado. Buscando paradero más cercano...");
+        
+        // 3. Convertir las coordenadas del clic en un punto GeoJSON
+        const puntoClickeado = turf.point([e.latlng.lng, e.latlng.lat]);
+
+        // 4. Encontrar el paradero más cercano a ese clic
+        const paraderoDestino = encontrarParaderoMasCercano(puntoClickeado);
+
+        if (!paraderoDestino) {
+            alert("No se encontraron paraderos cercanos a ese punto.");
+            return;
+        }
+
+        // 5. Asignar como destino global y actualizar el selector
+        paraderoFin = paraderoDestino; // 'paraderoFin' es una variable global
+        
+        // --- ⬇️ AQUÍ ESTÁ LA CORRECCIÓN ⬇️ ---
+        //   (quitamos el .toString() para pasarlo como NÚMERO)
+        choicesDestino.setChoiceByValue(paraderoDestino.properties.originalIndex);
+        // --- ⬆️ FIN DE LA CORRECCIÓN ⬆️ ---
+
+        console.log(`Destino fijado en: ${paraderoFin.properties.nombre}`);
+
+        // 6. Ejecutar la búsqueda de ruta
+        const puntoDePartida = paraderoInicioCercano;
+        listaDePlanes = encontrarRutaCompleta(puntoDePartida, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
+        
+        // 7. Mostrar los resultados
+        mostrarPlanes(listaDePlanes);
+    });
+    // ⬆️⬆️ FIN DEL MÓDULO CORREGIDO ⬆️⬆️
     
     try {
         const [resParaderos, resRutas] = await Promise.all([
@@ -159,6 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // ⬇️ MODIFICADO (BUG 1): Usar 'iniciarWatchLocation' para que el inicio se actualice en vivo ⬇️
         iniciarWatchLocation(handleInitialLocation, handleLocationError);
+        actualizarPanelDeInicio();
 
     } catch (error) {
         console.error("Error cargando o procesando los datos GeoJSON:", error);
@@ -503,6 +592,7 @@ function limpiarMapa() {
     // ⬇️⬇️ CORRECCIÓN AÑADIDA ⬇️⬇️
     // Esto resetea el texto del panel de "Opciones de ruta"
     instruccionesEl.innerHTML = '<p>Selecciona tu destino para ver la ruta.</p>';
+    actualizarPanelDeInicio();
     // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
 
     // --- RESETEAR NAVEGACIÓN ---
@@ -580,10 +670,12 @@ function togglePanel() {
 
 
 // --- 6. LÓGICA DE NAVEGACIÓN (UI) ---
+// js/app.js
 
 function mostrarPlanes(planes) {
-    instruccionesEl.innerHTML = ''; // ⬅️ CORREGIDO (bug visual)
-    marcadores.clearLayers();
+    instruccionesEl.innerHTML = ''; // Limpia el panel
+    marcadores.clearLayers();     // ⬅️ Limpia marcadores viejos
+    limpiarCapasDeRuta();         // ⬅️ Limpia líneas de ruta viejas
     
     const puntoDePartida = puntoInicio || paraderoInicioCercano;
     if (!puntoDePartida) {
@@ -591,29 +683,67 @@ function mostrarPlanes(planes) {
         return;
     }
     
+    // 1. DIBUJAR MARCADOR DE USUARIO ("Estás aquí")
     const inicioCoords = puntoDePartida.geometry.coordinates;
-    L.marker([inicioCoords[1], inicioCoords[0]]).addTo(marcadores).bindPopup(puntoInicio ? "<b>Estás aquí</b>" : `<b>Inicio:</b><br>${paraderoInicioCercano.properties.nombre}`);
+    L.marker([inicioCoords[1], inicioCoords[0]])
+     .addTo(marcadores)
+     .bindPopup(puntoInicio ? "<b>Estás aquí</b>" : `<b>Inicio (Manual):</b><br>${paraderoInicioCercano.properties.nombre}`);
+
+    // 2. DIBUJAR MARCADOR DE DESTINO FINAL
+    const finCoords = paraderoFin.geometry.coordinates; // Esto es [Lng, Lat]
     
-    const finCoords = paraderoFin.geometry.coordinates;
-    L.marker([finCoords[1], finCoords[0]]).addTo(marcadores).bindPopup(`<b>Destino:</b><br>${paraderoFin.properties.nombre}`);
+    // ⬇️ ¡CORRECCIÓN! Invertimos las coordenadas para Leaflet
+    const finLatLng = [finCoords[1], finCoords[0]]; 
+    
+    const popupDestino = crearPopupInteligente(paraderoFin, "Destino Final");
+    L.marker(finLatLng, { icon: iconoDestino }) // ⬅️ Usamos las coords corregidas
+     .addTo(marcadores)
+     .bindPopup(popupDestino);
+
 
     if (!planes || planes.length === 0) {
-        instruccionesEl.innerHTML = `
-            <p><strong>Ruta no encontrada</strong></p>
-            <p>No se pudo encontrar una ruta con menos de 4 buses (límite de 4 transbordos).</p>
-        `;
-        btnIniciarRuta.style.display = 'none';
-        btnLimpiar.style.display = 'block';
+        // ... (código de error)
         return;
     }
 
+    // 3. DIBUJAR MARCADORES DEL PLAN (INICIO Y TRANSBORDOS)
+    // (Solo dibujamos los del primer plan para la vista previa)
+    const planEjemplo = planes[0];
+    const pasosBus = planEjemplo.filter(paso => paso.tipo === 'bus');
+
+    // 3A. Paradero de Inicio (Subida)
+    const pasoInicio = planEjemplo.find(p => p.tipo === 'caminar');
+    if (pasoInicio) {
+        const paraderoInicio = pasoInicio.paradero;
+        const pCoords = paraderoInicio.geometry.coordinates;
+        const pLatLng = [pCoords[1], pCoords[0]];
+        const popupInicio = crearPopupInteligente(paraderoInicio, "Subir aquí");
+        L.marker(pLatLng, { icon: iconoParadero }) // ⬅️ Icono Azul
+         .addTo(marcadores)
+         .bindPopup(popupInicio);
+    }
+
+    // 3B. Paraderos de Transbordo
+    for (let i = 0; i < pasosBus.length - 1; i++) {
+        const paraderoDeTransbordo = pasosBus[i].paraderoFin; 
+        const coords = paraderoDeTransbordo.geometry.coordinates;
+        const latLng = [coords[1], coords[0]];
+        const popup = crearPopupInteligente(paraderoDeTransbordo, "Transbordo Aquí");
+        L.marker(latLng, { icon: iconoTransbordo }) // ⬅️ Icono Naranja
+         .addTo(marcadores)
+         .bindPopup(popup);
+    }
+
+    // 4. CREAR EL HTML DEL PANEL
     const fragment = document.createDocumentFragment();
+    // ... (el resto del código que crea el HTML sigue igual)
     const header = document.createElement('p');
     header.innerHTML = `<strong>Se encontraron ${planes.length} opciones:</strong>`;
     fragment.appendChild(header);
     
     planes.forEach((plan, index) => {
         const opcionDiv = document.createElement('div');
+        // ... (el resto del bucle)
         opcionDiv.className = 'opcion-ruta';
         
         const buses = plan.filter(p => p.tipo === 'bus').map(p => p.ruta.properties.id);
@@ -625,7 +755,7 @@ function mostrarPlanes(planes) {
         plan.forEach(paso => {
             if (paso.tipo === 'caminar' || paso.tipo === 'bus') {
                 const li = document.createElement('li');
-                li.textContent = paso.texto;
+                li.textContent = paso.texto; // <-- ¡El texto ya tiene la distancia/tiempo!
                 listaOL.appendChild(li);
             }
         });
@@ -642,12 +772,17 @@ function mostrarPlanes(planes) {
         opcionDiv.appendChild(btnSeleccionar);
         fragment.appendChild(opcionDiv);
     });
+    // ... (fin del bucle)
 
     instruccionesEl.appendChild(fragment);
-    dibujarPlan(planes);
+    
+    // 5. DIBUJAR LÍNEAS DE RUTA
+    dibujarPlan(planes); // ⬅️ ¡Ahora solo dibuja líneas!
+    
     btnLimpiar.style.display = 'block';
     btnIniciarRuta.style.display = 'none'; 
 }
+// js/app.js
 
 const seleccionarPlan = (indice) => {
     rutaCompletaPlan = listaDePlanes[indice];
@@ -655,34 +790,76 @@ const seleccionarPlan = (indice) => {
     distanciaTotalRuta = 0;
     let puntoAnterior = puntoInicio || paraderoInicioCercano; 
 
+    // ⬇️⬇️ INICIO DEL MÓDULO DE DISTANCIA/TIEMPO ⬇️⬇️
+    // Este bucle ahora reemplaza al bucle anterior.
     rutaCompletaPlan.forEach(paso => {
+        let distanciaPaso = 0;
         try {
             if (paso.tipo === 'caminar') {
-                distanciaTotalRuta += turf.distance(puntoAnterior, paso.paradero, { units: 'meters' });
-                puntoAnterior = paso.paradero;
+                // 1. Calcular distancia del paso
+                distanciaPaso = turf.distance(puntoAnterior, paso.paradero, { units: 'meters' });
+                distanciaTotalRuta += distanciaPaso; // Sumar al total
+                puntoAnterior = paso.paradero; // Actualizar el punto de anclaje
+
+                // 2. Enriquecer el paso (Módulo de Tiempo/Distancia)
+                const tiempoPaso = Math.max(1, Math.round(distanciaPaso / 80)); // 80m/min, mínimo 1 min
+                paso.distanciaMetros = distanciaPaso;
+                paso.tiempoEstimadoMin = tiempoPaso;
+                // 3. ¡Actualizar el texto que verá el usuario!
+                paso.texto = `Dirígete a ${paso.paradero.properties.nombre} (${distanciaPaso.toFixed(0)} m - ${tiempoPaso} min 🚶‍♂️)`;
+
             } else if (paso.tipo === 'bus') {
+                // 1. Calcular distancia del paso
                 const startOnLine = turf.nearestPointOnLine(paso.ruta, paso.paraderoInicio);
                 const endOnLine = turf.nearestPointOnLine(paso.ruta, paso.paraderoFin);
                 const segmentoDeRuta = turf.lineSlice(startOnLine, endOnLine, paso.ruta);
-                distanciaTotalRuta += turf.length(segmentoDeRuta, { units: 'meters' });
-                puntoAnterior = paso.paraderoFin;
+                
+                distanciaPaso = turf.length(segmentoDeRuta, { units: 'meters' });
+                distanciaTotalRuta += distanciaPaso; // Sumar al total
+                puntoAnterior = paso.paraderoFin; // Actualizar el punto de anclaje
+
+                // 2. Enriquecer el paso (Módulo de Distancia)
+                paso.distanciaMetros = distanciaPaso;
+                // 3. ¡Actualizar el texto que verá el usuario!
+                paso.texto = `Toma ${paso.ruta.properties.id} y baja en ${paso.paraderoFin.properties.nombre} (${(distanciaPaso / 1000).toFixed(1)} km)`;
+            
+            } else if (paso.tipo === 'transbordo') {
+                // (Opcional) Estandarizamos el texto del transbordo
+                paso.texto = `En ${paso.paradero.properties.nombre}, espera el siguiente camión.`;
             }
+
         } catch (e) {
             console.error("Error calculando distancia del paso:", paso, e);
         }
     });
+    // ⬆️⬆️ FIN DEL MÓDULO ⬆️⬆️
 
     console.log(`Distancia total de la ruta: ${distanciaTotalRuta} metros`);
     
-    instruccionesEl.innerHTML = `<p><strong>Ruta seleccionada. ¡Listo para navegar!</strong></p>`;
+    // (El resto de la función es idéntico y sigue creando los botones)
     const buses = rutaCompletaPlan.filter(p => p.tipo === 'bus').map(p => p.ruta.properties.id);
-    instruccionesEl.innerHTML += `<p>${buses.join(' &rarr; ')}</p>`;
-    instruccionesEl.innerHTML += `<p><strong>Distancia total:</strong> ${(distanciaTotalRuta / 1000).toFixed(2)} km</p>`;
+    const rutaResumen = buses.join(' → ');
+
+    instruccionesEl.innerHTML = `
+        <p><strong>Ruta seleccionada. ¡Listo para navegar!</strong></p>
+        <p>${rutaResumen}</p>
+        <p><strong>Distancia total:</strong> ${(distanciaTotalRuta / 1000).toFixed(2)} km</p>
+        
+        <div class="panel-acciones">
+            <button id="btnIniciarRuta">Iniciar Ruta</button>
+            <button id="btnGuardarFavorito" class="btn-secundario">⭐️ Guardar Favorito</button>
+        </div>
+    `;
+
+    instruccionesEl.querySelector('#btnIniciarRuta').addEventListener('click', iniciarRutaProgresiva);
     
-    btnIniciarRuta.style.display = 'block';
+    instruccionesEl.querySelector('#btnGuardarFavorito').addEventListener('click', () => {
+        handleGuardarFavoritoClick();
+    });
+    
+    btnIniciarRuta.style.display = 'none'; 
     dibujarPlan([rutaCompletaPlan]);
 }
-
 
 function encontrarParaderoMasCercano(punto) {
     return turf.nearestPoint(punto, paraderosCollection);
@@ -691,9 +868,32 @@ function encontrarParaderoMasCercano(punto) {
 // --- 7. FUNCIONES DE NAVEGACIÓN ---
 
 // ⬇️ MODIFICADO: Permite modo manual (sin GPS) ⬇️
+// js/app.js
+
 function iniciarRutaProgresiva() {
     if (!rutaCompletaPlan || rutaCompletaPlan.length === 0) return;
 
+// ⬇️⬇️ INICIO DEL NUEVO MÓDULO DE HISTORIAL (CORREGIDO) ⬇️⬇️
+    try {
+        const rutaResumen = rutaCompletaPlan.filter(p => p.tipo === 'bus').map(p => p.ruta.properties.id).join(' → ');
+        
+        // --- ESTA ES LA LÍNEA CORREGIDA ---
+        // Siempre usamos 'paraderoInicioCercano' para el ID y Nombre,
+        // ya que 'puntoInicio' (el GPS) no tiene esos datos.
+        const itemHistorial = {
+            inicioId: paraderoInicioCercano.properties.originalIndex,
+            inicioNombre: paraderoInicioCercano.properties.nombre,
+            finId: paraderoFin.properties.originalIndex,
+            finNombre: paraderoFin.properties.nombre,
+            rutaResumen: rutaResumen,
+            fecha: new Date().toISOString()
+        };
+        guardarEnHistorial(itemHistorial);
+
+    } catch (e) {
+        console.error("Error al guardar en el historial:", e);
+    }
+    // ⬆️⬆️ FIN DEL MÓDULO (CORREGIDO) ⬆️⬆️
     // Configuración común para ambos modos
     pasoActual = 0;
     alertaMostrada = false;
@@ -947,4 +1147,330 @@ if ('serviceWorker' in navigator) {
         console.log('Service Worker: Falló el registro', err);
       });
   });
+}
+
+/**
+ * (NUEVO MÓDULO) Guarda un item en el historial de localStorage.
+ * Mantiene un máximo de 5 items y evita duplicados.
+ */
+function guardarEnHistorial(item) {
+    const MAX_ITEMS = 5;
+    let historial = JSON.parse(localStorage.getItem('historialRutas')) || [];
+
+    // 1. Evitar duplicados: Si ya existe, la borramos para ponerla al inicio
+    historial = historial.filter(h => 
+        !(h.inicioId === item.inicioId && h.finId === item.finId)
+    );
+
+    // 2. Añadir el nuevo item al INICIO
+    historial.unshift(item);
+
+    // 3. Limitar el historial a 5 items
+    const historialLimitado = historial.slice(0, MAX_ITEMS);
+
+    // 4. Guardar de vuelta en localStorage
+    localStorage.setItem('historialRutas', JSON.stringify(historialLimitado));
+}
+
+/**
+ * (MÓDULO ACTUALIZADO) Carga Favoritos e Historial de localStorage
+ * y los muestra en el panel de instrucciones.
+ */
+function actualizarPanelDeInicio() {
+    const historial = JSON.parse(localStorage.getItem('historialRutas')) || [];
+    const favoritos = JSON.parse(localStorage.getItem('favoritasRutas')) || [];
+
+    let html = "";
+
+    // --- 1. Generar HTML para Favoritos ---
+    if (favoritos.length > 0) {
+        html += `<p style="font-weight: bold; margin-bottom: 10px;">⭐️ Tus Favoritos:</p>`;
+        
+        html += favoritos.map(item => {
+            return `
+                <div class="opcion-ruta favorito-item" 
+                     data-inicio-id="${item.inicioId}" 
+                     data-fin-id="${item.finId}"
+                     title="Repetir: ${item.inicioNombre} → ${item.finNombre}">
+                    
+                    <span class="delete-favorito" data-nombre="${item.nombre}" title="Borrar favorito">&times;</span>
+                    
+                    <h4 style="margin-bottom: 5px;">${item.nombre}</h4>
+                    <small style="color: #555;">${item.inicioNombre} → ${item.finNombre}</small>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // --- 2. Generar HTML para Historial ---
+    if (historial.length > 0) {
+        html += `<p style="font-weight: bold; margin-bottom: 10px; margin-top: 20px;">Tu historial reciente:</p>`;
+        
+        html += historial.map(item => {
+            return `
+                <div class="opcion-ruta historial-item" 
+                     data-inicio-id="${item.inicioId}" 
+                     data-fin-id="${item.finId}"
+                     title="Repetir esta búsqueda">
+                    <h4 style="margin-bottom: 5px;">${item.inicioNombre} → ${item.finNombre}</h4>
+                    <small style="color: #555;">${item.rutaResumen || 'Ruta de caminata'}</small>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // --- 3. Si no hay nada, mostrar mensaje pordefecto ---
+    if (html === "") {
+        instruccionesEl.innerHTML = '<p>Selecciona tu destino para ver la ruta.</p>';
+        return;
+    }
+
+    // --- 4. Insertar todo en el panel ---
+    instruccionesEl.innerHTML = html;
+    
+    // --- 5. Asignar los listeners ---
+    
+    // ❗️ Usamos la función renombrada 'ejecutarBusquedaGuardada' para AMBOS
+    document.querySelectorAll('.historial-item').forEach(item => {
+        item.addEventListener('click', ejecutarBusquedaGuardada);
+    });
+    document.querySelectorAll('.favorito-item').forEach(item => {
+        item.addEventListener('click', ejecutarBusquedaGuardada);
+    });
+    
+    // Listener para los botones de borrar
+    document.querySelectorAll('.delete-favorito').forEach(item => {
+        item.addEventListener('click', handleFavoritoDelete);
+    });
+}
+
+/**
+ * (NUEVO MÓDULO) Se activa al hacer clic en un item del historial.
+ * Simula la selección de inicio y fin, y ejecuta la búsqueda.
+ */
+async function ejecutarBusquedaGuardada(event) {
+    const item = event.currentTarget; // 'currentTarget' es el <div> al que añadimos el listener
+    const inicioId = item.dataset.inicioId;
+    const finId = item.dataset.finId;
+
+    if (!inicioId || !finId) return;
+
+    console.log(`Cargando historial: Inicio ${inicioId}, Fin ${finId}`);
+
+    // 1. Encontrar los paraderos en nuestra lista
+    const paraderoInicio = todosLosParaderos.find(p => p.properties.originalIndex == inicioId);
+    paraderoFin = todosLosParaderos.find(p => p.properties.originalIndex == finId); // 'paraderoFin' es global
+
+    if (!paraderoInicio || !paraderoFin) {
+        alert("Error: No se pudieron encontrar los paraderos de esta ruta guardada.");
+        return;
+    }
+
+    // 2. Asignamos el paradero de inicio (como si fuera modo manual)
+    paraderoInicioCercano = paraderoInicio; // 'paraderoInicioCercano' es global
+    puntoInicio = null; // Nos aseguramos de que no use el GPS
+
+    // 3. Forzar los selectores (Choices.js) a mostrar los valores
+    // ⬇️ Esto también corrige un bug visual: muestra el selector manual
+    controlInputInicio.style.display = 'none';
+    controlSelectInicio.style.display = 'block';
+    
+    choicesInicioManual.setChoiceByValue(inicioId.toString());
+    choicesDestino.setChoiceByValue(finId.toString());
+
+    // 4. Ejecutar la búsqueda (la misma lógica que usas en 'initChoicesSelect')
+    listaDePlanes = encontrarRutaCompleta(paraderoInicioCercano, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
+    
+    // 5. Mostrar los resultados
+    mostrarPlanes(listaDePlanes);
+}
+
+function handleGuardarFavoritoClick() {
+    const nombre = prompt("Dale un nombre a esta ruta (ej. Casa a Oficina):", "");
+
+    if (!nombre || nombre.trim() === "") {
+        return;
+    }
+
+    try {
+        const itemFavorito = {
+            inicioId: paraderoInicioCercano.properties.originalIndex,
+            inicioNombre: paraderoInicioCercano.properties.nombre,
+            finId: paraderoFin.properties.originalIndex,
+            finNombre: paraderoFin.properties.nombre,
+            nombre: nombre.trim()
+        };
+
+        guardarEnFavoritos(itemFavorito);
+
+    } catch (e) {
+        console.error("Error al guardar en favoritos:", e);
+        alert("Error: No se pudo guardar el favorito.");
+    }
+}
+
+/**
+ * (NUEVO MÓDULO) Guarda un item en la lista de favoritos.
+ */
+function guardarEnFavoritos(item) {
+    let favoritos = JSON.parse(localStorage.getItem('favoritasRutas')) || [];
+
+    // 1. Evitar duplicados por nombre
+    favoritos = favoritos.filter(f => f.nombre !== item.nombre);
+
+    // 2. Añadir el nuevo item al INICIO
+    favoritos.unshift(item);
+
+    // 3. Guardar (sin límite, a diferencia del historial)
+    localStorage.setItem('favoritasRutas', JSON.stringify(favoritos));
+    
+    alert(`¡Ruta "${item.nombre}" guardada como favorita!`);
+}
+
+/**
+ * (NUEVO MÓDULO) Se activa al hacer clic en el botón 'X' de un favorito.
+ */
+function handleFavoritoDelete(event) {
+    // ❗️ Detiene el clic para que no active la búsqueda de ruta
+    event.stopPropagation(); 
+    
+    const nombre = event.currentTarget.dataset.nombre;
+    if (!nombre) return;
+    
+    if (confirm(`¿Seguro que quieres borrar el favorito "${nombre}"?`)) {
+        let favoritos = JSON.parse(localStorage.getItem('favoritasRutas')) || [];
+        favoritos = favoritos.filter(f => f.nombre !== nombre);
+        localStorage.setItem('favoritasRutas', JSON.stringify(favoritos));
+        
+        // Refresca el panel para mostrar la lista actualizada
+        actualizarPanelDeInicio(); 
+    }
+}
+
+/**
+ * (MÓDULO ACTUALIZADO) Busca y muestra los 5 paraderos más cercanos
+ * a la ubicación del usuario, usando los iconos y popups inteligentes.
+ */
+function handleParaderosCercanos() {
+    if (!puntoInicio) {
+        alert("No se ha podido detectar tu ubicación GPS. Muévete a un lugar con mejor señal o reinicia la app.");
+        return;
+    }
+
+    console.log("Buscando paraderos cercanos...");
+
+    // 1. Limpiar el mapa y controles
+    limpiarCapasDeRuta(); 
+    if (choicesRuta) {
+        choicesRuta.clearInput();
+        choicesRuta.removeActiveItems();
+    }
+
+    // 2. Calcular distancias
+    const paraderosConDistancia = todosLosParaderos.map(paradero => {
+        const distancia = turf.distance(puntoInicio, paradero, { units: 'meters' });
+        return { paradero, distancia };
+    });
+
+    // 3. Ordenar y tomar los 5 más cercanos
+    const paraderosCercanos = paraderosConDistancia
+        .sort((a, b) => a.distancia - b.distancia)
+        .slice(0, 5);
+
+    // 4. Dibujar marcadores y preparar lista para el panel
+    const marcadoresDeParaderos = [];
+    let htmlInstrucciones = '<p><strong>Paraderos más cercanos a ti:</strong></p><ol style="padding-left: 20px;">';
+
+    paraderosCercanos.forEach(item => {
+        const coords = item.paradero.geometry.coordinates;
+        const latLng = [coords[1], coords[0]];
+        const nombre = item.paradero.properties.nombre;
+        const dist = item.distancia.toFixed(0);
+
+        // Añadir a la lista HTML
+        htmlInstrucciones += `<li style="margin-bottom: 5px;">${nombre} (aprox. ${dist} m)</li>`;
+        
+        // ⬇️⬇️ INICIO DE LA LÓGICA ACTUALIZADA ⬇️⬇️
+        const paraderoId = item.paradero.properties.originalIndex;
+        
+        // 4A. Usar el nuevo ícono llamativo de nuestro CSS
+        const icono = L.divIcon({
+            className: 'paradero-icono-koox', // <-- ¡Nuestro nuevo estilo CSS!
+            iconSize: [16, 16]
+        });
+
+        // 4B. Crear el contenido del Popup "Inteligente"
+        const rutasEnParadero = (item.paradero.properties.rutas || []).join(', ');
+        
+        const popupHTML = `
+            <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 5px;">${nombre}</div>
+            <p style="font-size: 0.9em; margin: 4px 0;">Aprox. ${dist} m</p>
+            <strong style="font-size: 0.9em;">Rutas:</strong>
+            <p style="font-size: 0.9em; margin: 4px 0;">${rutasEnParadero || 'N/A'}</p>
+            <button class="btn-popup btn-ver-rutas-paradero" data-paradero-id="${paraderoId}">
+                Ver detalles
+            </button>
+        `;
+
+        // 4C. Crear el marcador
+        const marker = L.marker(latLng, { icon: icono })
+                .bindPopup(popupHTML);
+        // ⬆️⬆️ FIN DE LA LÓGICA ACTUALIZADA ⬆️⬆️
+        
+        marker.addTo(marcadores); // Añadimos a la capa global de marcadores
+        marcadoresDeParaderos.push(marker);
+    });
+
+    htmlInstrucciones += '</ol>';
+    instruccionesExplorarEl.innerHTML = htmlInstrucciones;
+
+    // 5. Centrar el mapa en el usuario y los paraderos
+    const userMarker = crearMarcadorUsuario(puntoInicio.geometry.coordinates.slice().reverse());
+    const group = L.featureGroup([userMarker, ...marcadoresDeParaderos]);
+    
+    if (group.getBounds().isValid()) {
+        map.fitBounds(group.getBounds().pad(0.2));
+    }
+}
+
+/**
+ * (NUEVO MÓDULO) Se activa al pulsar el botón "Ver detalles"
+ * en el popup de un paradero.
+ */
+function handleMostrarRutasDeParadero(event) {
+    const paraderoId = event.target.dataset.paraderoId;
+    if (!paraderoId) return;
+
+    // 1. Encontrar el paradero en nuestra lista global
+    const paradero = todosLosParaderos.find(p => p.properties.originalIndex == paraderoId);
+    if (!paradero) return;
+
+    // 2. Obtener la lista de IDs de ruta (ej: ["Koox 06", "Koox 10"])
+    const rutasIds = paradero.properties.rutas || [];
+    
+    // 3. Obtener los nombres completos de esas rutas (ej: "Koox 06 - Centro")
+    const rutasInfo = rutasIds.map(id => {
+        return todasLasRutas.find(r => r.properties.id === id);
+    }).filter(Boolean); // .filter(Boolean) elimina rutas no encontradas
+
+    // 4. Generar el HTML para el panel
+    let html = `<p>Mostrando rutas para:</p>
+                <h4 style="margin-top:0;">${paradero.properties.nombre}</h4>`;
+    
+    if (rutasInfo.length > 0) {
+        html += '<ul style="padding-left: 20px; margin-top: 10px;">';
+        rutasInfo.forEach(ruta => {
+            html += `<li style="margin-bottom: 5px;">
+                        <strong>${ruta.properties.id}</strong>
+                        <small>(${ruta.properties.nombre})</small>
+                    </li>`;
+        });
+        html += '</ul>';
+    } else {
+        html += '<p>No hay rutas registradas para este paradero.</p>';
+    }
+
+    // 5. Mostrar en el panel de explorar y cerrar el popup del mapa
+    instruccionesExplorarEl.innerHTML = html;
+    map.closePopup();
 }
