@@ -189,6 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // 7. Mostrar los resultados
         mostrarPlanes(listaDePlanes);
+        abrirPanelControl();
     });
     // ⬆️⬆️ FIN DEL MÓDULO CORREGIDO ⬆️⬆️
     
@@ -1431,6 +1432,7 @@ function handleParaderosCercanos() {
     if (group.getBounds().isValid()) {
         map.fitBounds(group.getBounds().pad(0.2));
     }
+    abrirPanelControl();
 }
 
 /**
@@ -1473,4 +1475,18 @@ function handleMostrarRutasDeParadero(event) {
     // 5. Mostrar en el panel de explorar y cerrar el popup del mapa
     instruccionesExplorarEl.innerHTML = html;
     map.closePopup();
+    abrirPanelControl();
+}
+
+// js/app.js
+
+/**
+ * (NUEVO MÓDULO) Asegura que el panel de control esté visible.
+ * Lo abre si estaba cerrado, para que el usuario vea el resultado
+ * de su acción en el mapa.
+ */
+function abrirPanelControl() {
+    if (panelControl.classList.contains('oculto')) {
+        panelControl.classList.remove('oculto');
+    }
 }
