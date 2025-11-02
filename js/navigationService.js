@@ -1,73 +1,117 @@
 // js/navigationService.js
 
-// Umbral en metros. Si el usuario se mueve menos que esto,
-// se considera que está "detenido" (esperando el camión).
-const UMBRAL_MOVIMIENTO = 15; // 15 metros
-
-let posicionAnterior = null;
-let distanciaRecorridaTotal = 0; // en metros
-let tiempoDetenido = 0; // en segundos
+// Estado de navegación
+let puntoDePartida = null;
+let distanciaRecorrida = 0;
+let tiempoDetenido = 0;
 let enMovimiento = false;
-let temporizador = null; // Referencia al setInterval
-let tiempoTotalViaje = 0; // <-- NUEVA VARIABLE
+let ultimoCheck = null;
+let ultimaPosicion = null;
+let tiempoTotalViaje = 0;
+let inicioViajeTimestamp = null;
+let enModoTransbordo = false; // ⬅️ NUEVA VARIABLE DE ESTADO
 
-function onTick() {
-    // Incrementamos el tiempo total del viaje SIN CONDICIONES
-    tiempoTotalViaje++;
-
-    // Incrementamos el tiempo de espera SÓLO SI no se mueve
-    if (!enMovimiento) {
-        tiempoDetenido++;
-    }
-}
+// Constantes
+const UMBRAL_VELOCIDAD_MOVIMIENTO = 1.0; // m/s (equivale a 3.6 km/h, velocidad de caminata)
+const UMBRAL_DISTANCIA_FALLBACK = 3;   // metros (solo si el GPS no reporta velocidad)
 
 /**
- * Inicia la sesión de navegación.
+ * Inicia el servicio de navegación.
+ * Resetea todos los contadores.
+ * @param {Object} puntoInicioGeoJSON - Punto de inicio del usuario (formato GeoJSON Point)
  */
-export function startNavigation(puntoInicio) {
-    posicionAnterior = puntoInicio;
-    distanciaRecorridaTotal = 0;
+export function startNavigation(puntoInicioGeoJSON) {
+    puntoDePartida = puntoInicioGeoJSON;
+    distanciaRecorrida = 0;
     tiempoDetenido = 0;
-    tiempoTotalViaje = 0; // <-- RESETEAR
-    enMovimiento = false; 
+    enMovimiento = false;
+    ultimoCheck = Date.now();
+    ultimaPosicion = puntoDePartida;
+    inicioViajeTimestamp = Date.now();
+    tiempoTotalViaje = 0;
+    enModoTransbordo = false; // ⬅️ Resetea el estado
     
-    if (temporizador) clearInterval(temporizador);
-    temporizador = setInterval(onTick, 1000);
     console.log("NavigationService: Iniciado.");
 }
 
 /**
- * Detiene la sesión de navegación.
+ * Detiene el servicio de navegación.
  */
 export function stopNavigation() {
-    if (temporizador) clearInterval(temporizador);
-    temporizador = null;
-    posicionAnterior = null;
+    puntoDePartida = null;
+    ultimoCheck = null;
+    ultimaPosicion = null;
+    inicioViajeTimestamp = null;
+    enModoTransbordo = false; // ⬅️ Resetea el estado
     console.log("NavigationService: Detenido.");
-    // No reseteamos los contadores aquí, para poder ver el resumen
+}
+
+// ⬇️ NUEVA FUNCIÓN EXPORTADA ⬇️
+/**
+ * Activa el modo transbordo (llamado por app.js)
+ */
+export function activarModoTransbordo() {
+    console.log("NavigationService: Modo Transbordo ACTIVADO.");
+    enModoTransbordo = true;
 }
 
 /**
- * Actualiza el estado de navegación con una nueva coordenada.
+ * Actualiza el estado de la navegación basado en la nueva posición del usuario.
+ * @param {Object} puntoUsuario - Nueva posición del usuario (GeoJSON Point)
+ * @param {number | null} speed - Velocidad reportada por el GPS (en m/s)
+ * @returns {Object} El estado actual de la navegación.
  */
-export function updatePosition(puntoActual) {
-    // ... (Cálculo de distancia y 'enMovimiento' ... ¡sin cambios!) ...
-    if (!posicionAnterior) { /* ... */ }
-    const distanciaDelta = turf.distance(posicionAnterior, puntoActual, { units: 'meters' });
-    distanciaRecorridaTotal += distanciaDelta;
-    if (distanciaDelta < UMBRAL_MOVIMIENTO) {
-        enMovimiento = false;
-    } else {
-        enMovimiento = true;
-        tiempoDetenido = 0; 
+export function updatePosition(puntoUsuario, speed) {
+    if (!puntoDePartida || !ultimoCheck || !ultimaPosicion) {
+        return null;
     }
-    posicionAnterior = puntoActual;
 
-    // Devolvemos el estado actual para que app.js lo muestre
+    const ahora = Date.now();
+    const tiempoPasadoSegundos = (ahora - ultimoCheck) / 1000;
+    const distanciaMovidaMetros = turf.distance(ultimaPosicion, puntoUsuario, { units: 'meters' });
+
+    if (distanciaMovidaMetros > 1.0) {
+        distanciaRecorrida += distanciaMovidaMetros;
+    }
+
+    tiempoTotalViaje = Math.floor((ahora - inicioViajeTimestamp) / 1000);
+
+    // --- Lógica de Movimiento ---
+    let movimientoDetectado = false;
+    
+    if (speed !== null && speed !== undefined) {
+        // Método 1: Usar velocidad del GPS
+        if (speed > UMBRAL_VELOCIDAD_MOVIMIENTO) {
+            movimientoDetectado = true;
+        }
+    } else {
+        // Método 2: Adivinar por distancia (fallback)
+        if (distanciaMovidaMetros > UMBRAL_DISTANCIA_FALLBACK) {
+            movimientoDetectado = true;
+        }
+    }
+
+    // --- Actualizar Estado ---
+    if (movimientoDetectado) {
+        enMovimiento = true;
+        tiempoDetenido = 0; // Resetea el contador de espera
+        enModoTransbordo = false; // ⬅️ SI TE MUEVES, SE ACABA EL TRANSBORDO
+    } else {
+        enMovimiento = false;
+        // Solo acumula tiempo detenido si NO estamos en modo transbordo
+        if (!enModoTransbordo) {
+            tiempoDetenido += tiempoPasadoSegundos; 
+        }
+    }
+    
+    ultimaPosicion = puntoUsuario;
+    ultimoCheck = ahora;
+
     return {
-        distanciaRecorrida: distanciaRecorridaTotal,
-        tiempoDetenido: tiempoDetenido,
-        tiempoTotalViaje: tiempoTotalViaje, // <-- DEVOLVER NUEVO VALOR
-        enMovimiento: enMovimiento
+        distanciaRecorrida: distanciaRecorrida,
+        tiempoDetenido: Math.round(tiempoDetenido),
+        enMovimiento: enMovimiento,
+        tiempoTotalViaje: tiempoTotalViaje,
+        enModoTransbordo: enModoTransbordo // ⬅️ NUEVO: Devuelve el estado
     };
 }

@@ -4,8 +4,8 @@
 import { initMap, crearMarcadorUsuario, dibujarPlan, dibujarPaso, marcadores, map, dibujarRutaExplorar, limpiarCapasDeRuta } from './mapService.js';
 import { getUbicacionUsuario, iniciarWatchLocation, detenerWatchLocation } from './locationService.js';
 import { encontrarRutaCompleta, crearMapaRutas, linkParaderosARutas } from './routeFinder.js';
-import { startNavigation, stopNavigation, updatePosition } from './navigationService.js';
-
+// js/app.js
+import { startNavigation, stopNavigation, updatePosition, activarModoTransbordo } from './navigationService.js';
 
 // --- 2. VARIABLES GLOBALES DE ESTADO ---
 let todosLosParaderos = [];
@@ -16,15 +16,19 @@ let listaDePlanes = [];
 let rutaCompletaPlan = [];
 let pasoActual = 0; 
 let alertaMostrada = false;
-let watchId = null;
+let watchId = null; // ⬅️ Este será el watchId de NAVEGACIÓN
 let autoCentrar = true;
 let puntoInicio = null; 
-let paraderoInicioCercano = null;
+let paraderoInicioCercano = null; 
 let paraderoFin = null;
 let choicesDestino = null;
 let distanciaTotalRuta = 0;
 let distanciaRestanteEl, tiempoEsperaEl, tiempoViajeEl;
 let choicesRuta = null;
+
+// ⬇️⬇️ NUEVAS VARIABLES PARA MODO MANUAL Y GPS INICIAL ⬇️⬇️
+let choicesInicioManual = null;
+let ubicacionInicialFijada = false; // ⬅️ Para arreglar Bug 1 (mapa que se mueve)
 
 // --- 3. REFERENCIAS AL DOM (Solo declaradas) ---
 let selectDestino, inputInicio, instruccionesEl, btnIniciarRuta, btnLimpiar;
@@ -33,13 +37,17 @@ let btnModoViaje, btnModoExplorar, panelViaje, panelExplorar;
 let selectRuta, instruccionesExplorarEl, btnLimpiarExplorar;
 let btnInfo, infoModal, btnCloseModal;
 
+// ⬇️⬇️ NUEVAS REFERENCIAS AL DOM ⬇️⬇️
+let selectInicioManual, controlInputInicio, controlSelectInicio;
+
+
 // --- 4. ARRANQUE DE LA APP ---
 document.addEventListener('DOMContentLoaded', async () => {
     
     // Asignamos todas las referencias al DOM aquí
     selectDestino = document.getElementById('selectDestino');
     inputInicio = document.getElementById('inputInicio');
-    instruccionesEl = document.getElementById('instrucciones');
+    instruccionesEl = document.getElementById('panel-instrucciones'); // ⬅️ CORREGIDO (apunta al panel)
     btnIniciarRuta = document.getElementById('btnIniciarRuta');
     btnLimpiar = document.getElementById('btnLimpiar');
     panelControl = document.getElementById('panel-control');
@@ -62,6 +70,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     infoModal = document.getElementById('info-modal');
     btnCloseModal = document.getElementById('btnCloseModal');
     tiempoViajeEl = document.getElementById('tiempo-viaje');
+
+    // ⬇️⬇️ ASIGNACIÓN DE NUEVOS ELEMENTOS DEL DOM ⬇️⬇️
+    selectInicioManual = document.getElementById('selectInicioManual'); // (de index.html corregido)
+    controlInputInicio = document.getElementById('control-input-inicio');
+    controlSelectInicio = document.getElementById('control-select-inicio');
     
     // Conectamos TODOS los eventos principales aquí
     panelToggle.addEventListener('click', togglePanel);
@@ -83,6 +96,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     panelControl.classList.add('oculto'); 
     panelNavegacion.classList.add('oculto');
+    
+    // Ocultar panel manual por defecto
+    if (controlSelectInicio) {
+        controlSelectInicio.style.display = 'none';
+    }
     
     initMap(); 
     
@@ -133,10 +151,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("¡Enlace completado!");
         paraderosCollection = turf.featureCollection(todosLosParaderos);
         
-        initChoicesSelect();
-        initChoicesSelectRuta();
+        // Inicializar AMBOS selectores
+        initChoicesSelect(); // Destino
+        initChoicesSelectInicioManual(); // Inicio Manual
         
-        getUbicacionUsuario(handleInitialLocation, handleLocationError);
+        initChoicesSelectRuta(); // Explorar
+        
+        // ⬇️ MODIFICADO (BUG 1): Usar 'iniciarWatchLocation' para que el inicio se actualice en vivo ⬇️
+        iniciarWatchLocation(handleInitialLocation, handleLocationError);
 
     } catch (error) {
         console.error("Error cargando o procesando los datos GeoJSON:", error);
@@ -145,31 +167,113 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // --- 5. LÓGICA DE LA APP (EVENT HANDLERS) ---
 
+// ⬇️ MODIFICADO (BUG 1): Esta función ahora es llamada por 'iniciarWatchLocation' ⬇️
 function handleInitialLocation(pos) {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     
     if (lat === 0 && lon === 0) {
         console.error("Posición GPS inválida (0,0) detectada.");
-        handleLocationError({ code: 0, message: "Posición GPS inválida (0,0)" });
-        inputInicio.value = "Error de GPS (0,0)";
+        // Solo mostramos error si es la primera vez (para no ser molestos)
+        if (!ubicacionInicialFijada) {
+            handleLocationError({ code: 0, message: "Posición GPS inválida (0,0)" });
+            inputInicio.value = "Error de GPS (0,0)";
+        }
         return;
     }
 
-    puntoInicio = turf.point([lon, lat]);
-    paraderoInicioCercano = encontrarParaderoMasCercano(puntoInicio);
+    puntoInicio = turf.point([lon, lat]); // Guardamos el punto GPS real (siempre se actualiza)
+    paraderoInicioCercano = encontrarParaderoMasCercano(puntoInicio); // ⬅️ FIJAMOS EL INICIO (siempre se actualiza)
     
+    // Actualizamos el input de texto (siempre)
     inputInicio.value = `Cerca de "${paraderoInicioCercano.properties.nombre}"`;
     inputInicio.style.fontStyle = 'normal';
-    map.setView([lat, lon], 16);
+    inputInicio.style.color = 'black';
+    inputInicio.style.fontWeight = 'normal';
     
-    const marker = crearMarcadorUsuario([lat, lon]);
-    marker.bindPopup("<b>Estás aquí</b>").openPopup();
+    // Solo centramos el mapa y abrimos el popup LA PRIMERA VEZ
+    if (!ubicacionInicialFijada) {
+        ubicacionInicialFijada = true; // Marcamos que ya fijamos la vista
+        map.setView([lat, lon], 16);
+        const marker = crearMarcadorUsuario([lat, lon]);
+        marker.bindPopup("<b>Estás aquí</b>").openPopup();
+    }
 }
 
+// ⬇️ MODIFICADO: Ahora el HTML se inserta en 'panel-instrucciones' ⬇️
 function handleLocationError(err) {
-    console.warn(`ERROR(${err.code}): ${err.message}`);
-    inputInicio.value = "No se pudo obtener ubicación";
+    console.warn(`ERROR DE UBICACIÓN (${err.code}): ${err.message}`);
+    
+    // Actualizar el input de "Autodetección" para mostrar el error
+    inputInicio.value = "Ubicación bloqueada";
+    inputInicio.style.color = "red";
+    inputInicio.style.fontWeight = "bold";
+
+    // Determinar el mensaje de error
+    let titulo = 'GPS bloqueado o desactivado';
+    let texto = 'Parece que tu navegador (como el de Facebook) bloquea la geolocalización o el permiso fue denegado.';
+    
+    if (err.code === 2) { // POSITION_UNAVAILABLE
+        titulo = 'GPS no disponible';
+        texto = 'No pudimos obtener una señal de GPS. Revisa que tu ubicación esté encendida.';
+    } else if (err.code === 0 || err.message === "Posición GPS inválida (0,0)") {
+        titulo = 'Error de GPS';
+        texto = 'Tu GPS reportó una ubicación inválida (0,0). Intenta moverte a un área con mejor señal.';
+    }
+
+    // Mostrar el panel de opciones manuales
+    instruccionesEl.innerHTML = `
+        <div class="alerta-manual">
+            <h5 style="margin-top:0;">${titulo}</h5>
+            <p>${texto}</p>
+            <p><strong>Soluciones:</strong></p>
+            <div class="alerta-manual-botones">
+                <button id="btnModoManual" class="btn-alerta btn-primario">
+                    📍 Usar Modo Manual
+                </button>
+                <button id="btnCopiarLink" class="btn-alerta btn-secundario">
+                    📋 Copiar Link
+                </button>
+            </div>
+            <small style="display: block; margin-top: 10px; text-align: center;">
+                (Puedes copiar el link y pegarlo en Chrome o Safari)
+            </small>
+        </div>
+    `;
+
+    // Añadir listeners a los nuevos botones
+    document.getElementById('btnModoManual').addEventListener('click', activarModoManual);
+    document.getElementById('btnCopiarLink').addEventListener('click', copiarLink);
+}
+
+// ⬇️ MODIFICADO: Ahora el HTML se inserta en 'panel-instrucciones' ⬇️
+function activarModoManual() {
+    console.log("Activando modo manual");
+    
+    // Ocultar el input de GPS y mostrar el dropdown manual
+    if (controlInputInicio) controlInputInicio.style.display = 'none';
+    if (controlSelectInicio) controlSelectInicio.style.display = 'block';
+
+    // Actualizar instrucciones
+    instruccionesEl.innerHTML = `
+        <p>Has activado el modo manual.</p>
+        <p>1. Selecciona tu <strong>paradero de inicio</strong>.</p>
+        <p>2. Selecciona tu <strong>paradero de destino</strong>.</p>
+    `;
+    
+    // Limpiar la variable de inicio. El usuario DEBE seleccionar uno.
+    paraderoInicioCercano = null; 
+    puntoInicio = null; // ⬅️ Aseguramos que no haya GPS
+}
+
+function copiarLink() {
+    try {
+        navigator.clipboard.writeText(window.location.href);
+        alert('¡Link copiado al portapapeles!\n\nPégalo en un navegador como Chrome, Safari o Firefox para un mejor funcionamiento.');
+    } catch (err) {
+        console.error('Error al copiar link:', err);
+        alert('No se pudo copiar el link. Por favor, hazlo manualmente desde la barra de direcciones.');
+    }
 }
 
 
@@ -198,7 +302,6 @@ function initChoicesSelect() {
         removeItemButton: true,
         searchFields: ['label', 'customProperties.calle', 'customProperties.colonia'],
         
-        // 2. TEMPLATES LIMPIOS (Sin 'style')
         callbackOnCreateTemplates: function(template) {
             return {
                 item: ({ classNames }, data) => {
@@ -222,20 +325,99 @@ function initChoicesSelect() {
     });
 
     selectDestino.addEventListener('change', (event) => {
-        if (!puntoInicio) {
-            alert("Espera a que se detecte tu ubicación.");
+        // ⬇️ MODIFICADO: Comprueba si hay un paradero de inicio (manual O por GPS) ⬇️
+        if (!paraderoInicioCercano) {
+            alert("Espera a que se detecte tu ubicación o selecciona un inicio manual.");
             choicesDestino.clearInput();
+            choicesDestino.removeActiveItems(); // Limpiar la selección
             return;
         }
         
         const destinoIndex = event.detail.value;
         if (destinoIndex) {
             paraderoFin = todosLosParaderos.find(p => p.properties.originalIndex == destinoIndex);
-            listaDePlanes = encontrarRutaCompleta(paraderoInicioCercano, paraderoFin, todasLasRutas, mapRutaParaderos);
+
+            // ⬇️⬇️ CORRECCIÓN 1: Se usa "paraderoInicioCercano" (el paradero) en lugar de "puntoDePartida" ⬇️⬇️
+            // Esto evita el error "undefined" si el GPS está activo.
+            const puntoDePartida = paraderoInicioCercano; 
+            
+            // ⬇️⬇️ CORRECCIÓN 2: Se pasa "todosLosParaderos" a la función ⬇️⬇️
+            listaDePlanes = encontrarRutaCompleta(puntoDePartida, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
             mostrarPlanes(listaDePlanes);
         }
     });
 }
+
+function initChoicesSelectInicioManual() {
+    if (!selectInicioManual) return; // Salir si el HTML no está listo
+
+    const choicesData = todosLosParaderos.map(paradero => {
+        const props = paradero.properties;
+        const nombreCalle = props.NOMVIAL || props.calle_cercana || "";
+        const nombreColonia = props.NOM_COL || props.colonia_cercana || "";
+
+        return {
+            value: props.originalIndex,
+            label: props.nombre,
+            customProperties: { 
+                calle: nombreCalle,
+                colonia: nombreColonia
+            }
+        };
+    });
+
+    choicesInicioManual = new Choices(selectInicioManual, {
+        choices: choicesData,
+        itemSelectText: 'Seleccionar',
+        searchPlaceholderValue: 'Escribe paradero, calle o colonia...',
+        shouldSort: false,
+        removeItemButton: true,
+        searchFields: ['label', 'customProperties.calle', 'customProperties.colonia'],
+        
+        callbackOnCreateTemplates: function(template) {
+            return {
+                item: ({ classNames }, data) => {
+                    return template(
+                        `<div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}" data-item data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''}>
+                            <span>${data.label}</span>
+                            <small>${data.customProperties.calle || data.customProperties.colonia || ''}</small>
+                        </div>`
+                    );
+                },
+                choice: ({ classNames }, data) => {
+                    return template(
+                        `<div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}" data-select-text="${this.config.itemSelectText}" data-choice ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}" data-id="${data.id}" data-value="${data.value}" ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}>
+                            <span>${data.label}</span>
+                            <small>${data.customProperties.calle || data.customProperties.colonia || ''}</small>
+                        </div>`
+                    );
+                },
+            };
+        }
+    });
+
+    // Event listener para CUANDO SE SELECCIONA UN INICIO MANUAL
+    selectInicioManual.addEventListener('change', (event) => {
+        const inicioIndex = event.detail.value;
+        if (inicioIndex) {
+            // ⬅️ FIJAMOS EL INICIO MANUALMENTE
+            paraderoInicioCercano = todosLosParaderos.find(p => p.properties.originalIndex == inicioIndex);
+            console.log("Inicio manual fijado:", paraderoInicioCercano.properties.nombre);
+            
+            // Si ya hay un destino, recalcular la ruta
+            if (paraderoFin) {
+                // ⬇️⬇️ CORRECCIÓN 1: Se usa "paraderoInicioCercano" (el paradero manual) ⬇️⬇️
+                // Esto asegura que se use el paradero manual aunque el GPS esté activo.
+                const puntoDePartida = paraderoInicioCercano; 
+                
+                // ⬇️⬇️ CORRECCIÓN 2: Se pasa "todosLosParaderos" a la función ⬇️⬇️
+                listaDePlanes = encontrarRutaCompleta(puntoDePartida, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
+                mostrarPlanes(listaDePlanes);
+            }
+        }
+    });
+}
+
 
 function cambiarModo(modo) {
     if (modo === 'viaje') {
@@ -290,21 +472,32 @@ function handleExplorarRuta(rutaId) {
     `;
 }
 
+// ⬇️ MODIFICADO: Ahora el HTML se inserta en 'panel-instrucciones' ⬇️
 function limpiarMapa() {
     dibujarPlan([]);
-    limpiarCapasDeRuta(); // <-- AHORA FUNCIONA
+    limpiarCapasDeRuta();
 
-    // --- RESETEAR MODO VIAJE ---
-    instruccionesEl.innerHTML = "Selecciona tu destino para ver la ruta.";
-    paraderoFin = null;
-    rutaCompletaPlan = [];
-    listaDePlanes = [];
-    pasoActual = 0;
+// js/app.js
+    // --- RESETEAR NAVEGACIÓN ---
+    panelNavegacion.classList.add('oculto');
+    document.getElementById('nav-estado').style.display = 'flex'; 
+    tiempoEsperaEl.className = ''; // ⬅️ AÑADE ESTA LÍNEA (resetea el color)
+    stopNavigation(); 
+    detenerWatchLocation(watchId); // ⬅️ Detiene el watch de NAVEGACIÓN
     
     if (choicesDestino) {
         choicesDestino.clearInput();
         choicesDestino.removeActiveItems();
     }
+
+    // ⬇️ Resetear UI de Modo Manual ⬇️
+    if (controlSelectInicio) controlSelectInicio.style.display = 'none';
+    if (controlInputInicio) controlInputInicio.style.display = 'block';
+    if (choicesInicioManual) {
+        choicesInicioManual.clearInput();
+        choicesInicioManual.removeActiveItems();
+    }
+    // ⬆️ Fin Reseteo UI ⬆️
 
     btnIniciarRuta.style.display = 'none';
     btnLimpiar.style.display = 'none';
@@ -318,15 +511,31 @@ function limpiarMapa() {
     
     // --- RESETEAR NAVEGACIÓN ---
     panelNavegacion.classList.add('oculto');
+    document.getElementById('nav-estado').style.display = 'flex'; // ⬅️ Resetea el panel de nav
     stopNavigation();
-    detenerWatchLocation(watchId);
+    detenerWatchLocation(watchId); // ⬅️ Detiene el watch de NAVEGACIÓN
     
     // --- RESETEAR UBICACIÓN ---
+    // ⬇️ Lógica modificada ⬇️
     if (puntoInicio) {
+        // Si el GPS funcionó (y sigue funcionando), lo restauramos
+        paraderoInicioCercano = encontrarParaderoMasCercano(puntoInicio);
+        inputInicio.value = `Cerca de "${paraderoInicioCercano.properties.nombre}"`;
+        inputInicio.style.color = "black";
+        inputInicio.style.fontWeight = "normal";
         const coords = puntoInicio.geometry.coordinates;
         map.setView([coords[1], coords[0]], 16);
         crearMarcadorUsuario([coords[1], coords[0]]).bindPopup("<b>Estás aquí</b>").openPopup();
+    } else {
+        // Si el GPS NUNCA funcionó, reseteamos
+        paraderoInicioCercano = null;
+        inputInicio.value = "Detectando ubicación...";
+        inputInicio.style.color = "black";
+        inputInicio.style.fontWeight = "normal";
+        // El watch de ubicación general (iniciarWatchLocation) sigue corriendo, no
+        // necesitamos llamarlo de nuevo.
     }
+    // ⬆️ Fin lógica modificada ⬆️
 }
 
 
@@ -344,11 +553,18 @@ function togglePanel() {
 // --- 6. LÓGICA DE NAVEGACIÓN (UI) ---
 
 function mostrarPlanes(planes) {
-    instruccionesEl.innerHTML = '';
+    instruccionesEl.innerHTML = ''; // ⬅️ CORREGIDO (bug visual)
     marcadores.clearLayers();
     
-    const inicioCoords = puntoInicio.geometry.coordinates;
-    L.marker([inicioCoords[1], inicioCoords[0]]).addTo(marcadores).bindPopup("<b>Estás aquí</b>");
+    const puntoDePartida = puntoInicio || paraderoInicioCercano;
+    if (!puntoDePartida) {
+        instruccionesEl.innerHTML = `<p><strong>Error:</strong> No se ha fijado un punto de inicio.</p>`;
+        return;
+    }
+    
+    const inicioCoords = puntoDePartida.geometry.coordinates;
+    L.marker([inicioCoords[1], inicioCoords[0]]).addTo(marcadores).bindPopup(puntoInicio ? "<b>Estás aquí</b>" : `<b>Inicio:</b><br>${paraderoInicioCercano.properties.nombre}`);
+    
     const finCoords = paraderoFin.geometry.coordinates;
     L.marker([finCoords[1], finCoords[0]]).addTo(marcadores).bindPopup(`<b>Destino:</b><br>${paraderoFin.properties.nombre}`);
 
@@ -408,7 +624,7 @@ const seleccionarPlan = (indice) => {
     rutaCompletaPlan = listaDePlanes[indice];
 
     distanciaTotalRuta = 0;
-    let puntoAnterior = puntoInicio;
+    let puntoAnterior = puntoInicio || paraderoInicioCercano; 
 
     rutaCompletaPlan.forEach(paso => {
         try {
@@ -444,19 +660,49 @@ function encontrarParaderoMasCercano(punto) {
 }
 
 // --- 7. FUNCIONES DE NAVEGACIÓN ---
+
+// ⬇️ MODIFICADO: Permite modo manual (sin GPS) ⬇️
 function iniciarRutaProgresiva() {
     if (!rutaCompletaPlan || rutaCompletaPlan.length === 0) return;
-    console.log("Iniciando modo de navegación...");
-    panelControl.classList.add('oculto'); 
-    panelNavegacion.classList.remove('oculto');
+
+    // Configuración común para ambos modos
     pasoActual = 0;
     alertaMostrada = false;
+    panelControl.classList.add('oculto'); 
+    panelNavegacion.classList.remove('oculto');
+    
+    // Comprobamos si el GPS está activo (si puntoInicio fue fijado)
+    if (puntoInicio) {
+        // --- MODO GPS (ACTIVO) ---
+        console.log("Iniciando modo de navegación GPS (Activo)...");
+        
+        // Mostramos los contadores de tiempo real
+        document.getElementById('nav-estado').style.display = 'flex'; 
+        
+        // Iniciamos los servicios de GPS
+        crearMarcadorUsuario(puntoInicio.geometry.coordinates.slice().reverse());
+        startNavigation(puntoInicio); 
+        // ❗️Importante: El 'watchId' global ya está corriendo (Bug 1).
+        // Lo re-asignamos a 'watchId' de navegación y cambiamos su callback.
+        // (Esto asume que 'iniciarWatchLocation' detiene el anterior si existe,
+        // o que 'locationService' maneja un solo watchId. Para ser seguros,
+        // cambiamos el callback en 'locationService' o lo manejamos aquí)
+        // Por simplicidad, asumimos que 'iniciarWatchLocation' es el mismo watch.
+        watchId = iniciarWatchLocation(handleLocationUpdate, handleLocationError); // ⬅️ Asignamos el watch a la NAVEGACIÓN
+        map.on('dragstart', () => { autoCentrar = false; });
 
-    crearMarcadorUsuario(puntoInicio.geometry.coordinates.slice().reverse());
-    startNavigation(puntoInicio); 
-
-    watchId = iniciarWatchLocation(handleLocationUpdate, handleLocationError);
-    map.on('dragstart', () => { autoCentrar = false; });
+    } else {
+        // --- MODO MANUAL (PASIVO) ---
+        console.log("Iniciando modo de navegación MANUAL (Pasivo)...");
+        
+        // Ocultamos los contadores de tiempo real (no hay GPS)
+        document.getElementById('nav-estado').style.display = 'none'; 
+        
+        watchId = null; // No hay GPS
+        autoCentrar = true; 
+    }
+    
+    // Mostramos el primer paso para ambos modos
     mostrarPaso(pasoActual);
 }
 
@@ -465,14 +711,20 @@ function finalizarRuta() {
     panelNavegacion.classList.add('oculto'); 
     panelControl.classList.remove('oculto');
     stopNavigation(); 
-    detenerWatchLocation(watchId);
+    detenerWatchLocation(watchId); // Detiene el watch de navegación
     map.off('dragstart');
+    
+    // ⬇️ RE-ACTIVAMOS EL WATCH DE UBICACIÓN INICIAL ⬇️
+    iniciarWatchLocation(handleInitialLocation, handleLocationError);
+    
     limpiarMapa();
 }
 
+// ⬇️ MODIFICADO (BUG 2): Acepta y pasa la VELOCIDAD ⬇️
 function handleLocationUpdate(pos) {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
+    const speed = pos.coords.speed; // ⬅️ Extraemos la velocidad
     const latlng = [lat, lon];
 
     puntoInicio = turf.point([lon, lat]);
@@ -482,17 +734,26 @@ function handleLocationUpdate(pos) {
         map.panTo(latlng);
     }
 
-    const navState = updatePosition(puntoInicio);
+    // ⬇️ Pasamos la velocidad al servicio de navegación ⬇️
+// js/app.js
+
+    const navState = updatePosition(puntoInicio, speed); 
     if (navState) {
         actualizarUI_Navegacion(navState);
     }
-    checkProximidad(); 
+    // ⬇️ LE PASAMOS EL ESTADO DE NAVEGACIÓN ⬇️
+    checkProximidad(navState); 
 }
 
-function checkProximidad() {
+// js/app.js
+
+function checkProximidad(navState) {
     if (!rutaCompletaPlan || rutaCompletaPlan.length === 0 || pasoActual >= rutaCompletaPlan.length) return;
     const paso = rutaCompletaPlan[pasoActual];
     let distanciaMetros = Infinity;
+
+    // Solo revisa proximidad si el GPS está activo
+    if (!puntoInicio) return; 
 
     if (paso.tipo === 'caminar') {
         distanciaMetros = turf.distance(puntoInicio, paso.paradero, { units: 'meters' });
@@ -512,6 +773,20 @@ function checkProximidad() {
         
         if (distanciaMetros < 40) {
             console.log("Llegaste al paradero de destino, avanzando...");
+            
+            const esPasoFinal = (pasoActual === rutaCompletaPlan.length - 1);
+            
+            // ⬇️ LÓGICA DE TRANSBORDO ACTUALIZADA ⬇️
+            if (!esPasoFinal) {
+                // ¡ESTO ES UN TRANSBORDO!
+                console.log("Activando contador de transbordo...");
+                activarModoTransbordo(); // ⬅️ Llama al servicio
+                
+                // Hacemos vibrar
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+            
+            // Avanzamos al siguiente paso (o finalizamos)
             siguientePaso();
         }
     }
@@ -548,7 +823,8 @@ function mostrarPaso(indice) {
     btnFinalizar.style.display = esUltimoPaso ? 'block' : 'none';
     btnSiguiente.style.display = esUltimoPaso ? 'none' : 'block';
     
-    const bounds = dibujarPaso(paso, puntoInicio); 
+    const puntoDePartida = puntoInicio || paraderoInicioCercano;
+    const bounds = dibujarPaso(paso, puntoDePartida); 
     
     if (autoCentrar && bounds && bounds.isValid()) {
         map.fitBounds(bounds.pad(0.2));
@@ -556,6 +832,8 @@ function mostrarPaso(indice) {
         map.setView(map.getCenter(), 17);
     }
 }
+
+// js/app.js
 
 function actualizarUI_Navegacion(navState) {
 
@@ -567,25 +845,49 @@ function actualizarUI_Navegacion(navState) {
         distanciaRestanteEl.textContent = `Faltan: ${distanciaFaltante.toFixed(0)} m`;
     }
 
-    // 2. Actualizar tiempo de espera
-    if (navState.enMovimiento) {
+    // ⬇️ SECCIÓN DE LÓGICA DE CONTADOR COMPLETAMENTE REEMPLAZADA ⬇️
+    // 2. Actualizar estado (Movimiento / Transbordo / Esperando)
+    const LIMITE_TIEMPO_TRANSBORDO = 7200; // 2 horas en segundos
+
+    // Resetea la clase CSS
+    tiempoEsperaEl.className = ''; 
+
+    if (navState.enModoTransbordo && !navState.enMovimiento) {
+        // --- ESTADO 1: En Transbordo (Detenido) ---
+        const tiempoRestanteSeg = LIMITE_TIEMPO_TRANSBORDO - navState.tiempoTotalViaje;
+        
+        if (tiempoRestanteSeg > 0) {
+            const minutos = Math.floor(tiempoRestanteSeg / 60);
+            const segundos = tiempoRestanteSeg % 60;
+            tiempoEsperaEl.textContent = `Transbordo: ${minutos}:${segundos < 10 ? '0' : ''}${segundos}`;
+            tiempoEsperaEl.classList.add('transbordo-timer'); // Clase Azul
+        } else {
+            tiempoEsperaEl.textContent = "Tiempo Agotado";
+            tiempoEsperaEl.classList.add('advertencia'); // Clase Roja
+        }
+
+    } else if (navState.enMovimiento) {
+        // --- ESTADO 2: En Movimiento ---
         tiempoEsperaEl.textContent = "En movimiento";
-        tiempoEsperaEl.style.color = "#28a745"; // Verde
+        tiempoEsperaEl.classList.add('en-movimiento'); // Clase Verde
+    
     } else {
+        // --- ESTADO 3: Esperando (Detenido, ej. semáforo) ---
         const minutos = Math.floor(navState.tiempoDetenido / 60);
         const segundos = navState.tiempoDetenido % 60;
         tiempoEsperaEl.textContent = `Esperando: ${minutos}:${segundos < 10 ? '0' : ''}${segundos}`;
-        tiempoEsperaEl.style.color = "#dc3545"; // Rojo
+        tiempoEsperaEl.classList.add('advertencia'); // Clase Roja
     }
-    
+    // ⬆️ FIN DE LA SECCIÓN REEMPLAZADA ⬆️
+
     // 3. Actualizar tiempo total de viaje
-    const LIMITE_TIEMPO = 7200; // 2 horas en segundos
+    const LIMITE_TIEMPO_VIAJE = 7200; // 2 horas en segundos (puedes cambiar esto si quieres)
     const totalMinutos = Math.floor(navState.tiempoTotalViaje / 60);
     const totalSegundos = navState.tiempoTotalViaje % 60;
     
     tiempoViajeEl.textContent = `Viaje: ${totalMinutos}:${totalSegundos < 10 ? '0' : ''}${totalSegundos}`;
 
-    if (navState.tiempoTotalViaje > LIMITE_TIEMPO) {
+    if (navState.tiempoTotalViaje > LIMITE_TIEMPO_VIAJE) {
         tiempoViajeEl.classList.add('advertencia');
     } else {
         tiempoViajeEl.classList.remove('advertencia');
