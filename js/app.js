@@ -302,22 +302,34 @@ function initChoicesSelect() {
         removeItemButton: true,
         searchFields: ['label', 'customProperties.calle', 'customProperties.colonia'],
         
+// ... dentro de initChoicesSelect ...
+
         callbackOnCreateTemplates: function(template) {
             return {
                 item: ({ classNames }, data) => {
+                    // ⬇️⬇️ CORRECCIÓN ⬇️⬇️
+                    // 1. Obtener 'props' de forma segura. Si customProperties no existe, usar un objeto vacío.
+                    const props = data.customProperties || {}; 
+                    // 2. Obtener el subtexto de forma segura.
+                    const subtext = props.calle || props.colonia || '';
+                    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
+                    
                     return template(
                         `<div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}" data-item data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''}>
                             <span>${data.label}</span>
-                            <small>${data.customProperties.calle || data.customProperties.colonia || ''}</small>
-                        </div>`
+                            <small>${subtext}</small> </div>`
                     );
                 },
                 choice: ({ classNames }, data) => {
+                    // ⬇️⬇️ CORRECCIÓN (Aplicada también aquí por seguridad) ⬇️⬇️
+                    const props = data.customProperties || {};
+                    const subtext = props.calle || props.colonia || '';
+                    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
+
                     return template(
                         `<div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}" data-select-text="${this.config.itemSelectText}" data-choice ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}" data-id="${data.id}" data-value="${data.value}" ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}>
                             <span>${data.label}</span>
-                            <small>${data.customProperties.calle || data.customProperties.colonia || ''}</small>
-                        </div>`
+                            <small>${subtext}</small> </div>`
                     );
                 },
             };
@@ -374,28 +386,39 @@ function initChoicesSelectInicioManual() {
         removeItemButton: true,
         searchFields: ['label', 'customProperties.calle', 'customProperties.colonia'],
         
+// ... dentro de initChoicesSelectInicioManual ...
+
         callbackOnCreateTemplates: function(template) {
             return {
                 item: ({ classNames }, data) => {
+                    // ⬇️⬇️ CORRECCIÓN ⬇️⬇️
+                    const props = data.customProperties || {}; 
+                    const subtext = props.calle || props.colonia || '';
+                    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
+                    
                     return template(
                         `<div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}" data-item data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''}>
                             <span>${data.label}</span>
-                            <small>${data.customProperties.calle || data.customProperties.colonia || ''}</small>
-                        </div>`
+                            <small>${subtext}</small> </div>`
                     );
                 },
                 choice: ({ classNames }, data) => {
+                    // ⬇️⬇️ CORRECCIÓN (Aplicada también aquí por seguridad) ⬇️⬇️
+                    const props = data.customProperties || {};
+                    const subtext = props.calle || props.colonia || '';
+                    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
+
                     return template(
                         `<div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}" data-select-text="${this.config.itemSelectText}" data-choice ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}" data-id="${data.id}" data-value="${data.value}" ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}>
                             <span>${data.label}</span>
-                            <small>${data.customProperties.calle || data.customProperties.colonia || ''}</small>
-                        </div>`
+                            <small>${subtext}</small> </div>`
                     );
                 },
             };
         }
     });
-
+    
+    // ... resto de la función ...
     // Event listener para CUANDO SE SELECCIONA UN INICIO MANUAL
     selectInicioManual.addEventListener('change', (event) => {
         const inicioIndex = event.detail.value;
@@ -477,7 +500,11 @@ function limpiarMapa() {
     dibujarPlan([]);
     limpiarCapasDeRuta();
 
-// js/app.js
+    // ⬇️⬇️ CORRECCIÓN AÑADIDA ⬇️⬇️
+    // Esto resetea el texto del panel de "Opciones de ruta"
+    instruccionesEl.innerHTML = '<p>Selecciona tu destino para ver la ruta.</p>';
+    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
+
     // --- RESETEAR NAVEGACIÓN ---
     panelNavegacion.classList.add('oculto');
     document.getElementById('nav-estado').style.display = 'flex'; 
@@ -537,6 +564,8 @@ function limpiarMapa() {
     }
     // ⬆️ Fin lógica modificada ⬆️
 }
+
+// ... (el resto de tu app.js) ...
 
 
 function togglePanel() {
