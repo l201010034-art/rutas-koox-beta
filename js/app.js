@@ -150,9 +150,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 // js/app.js (en DOMContentLoaded, después de initMap())
 
     // ⬇️⬇️ INICIO DEL MÓDULO CORREGIDO ⬇️⬇️
-    map.on('contextmenu', (e) => {
-        // 1. Prevenir el menú contextual (el menú de clic derecho del navegador)
-        e.originalEvent.preventDefault();
+    map.on('dblclick', (e) => { // ⬅️ ¡EVENTO CAMBIADO!
+        // 1. (Opcional) Prevenir cualquier comportamiento por defecto
+        e.originalEvent.preventDefault(); 
+        // ...
 
         // 2. Comprobar si tenemos un punto de inicio
         if (!paraderoInicioCercano) {

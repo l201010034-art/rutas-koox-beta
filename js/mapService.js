@@ -8,8 +8,10 @@ export let map = null;
 
 export function initMap() {
     map = L.map('map', {
-        zoomControl: false
+        zoomControl: false,
+        doubleClickZoom: false // ⬅️ ¡AÑADE ESTA LÍNEA!
     }).setView([19.830, -90.528], 13);
+    // ...
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
