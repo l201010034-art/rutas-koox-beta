@@ -13,28 +13,24 @@
     <link rel="stylesheet" href="style.min.css" />
     <style>
         /* Reglas críticas para evitar el "Flash of Unstyled Content" (FOUC) */
-
-        /* 1. Define la clase 'oculto' para que JS pueda usarla */
         .oculto { 
             display: none !important; 
         }
-
-        /* 2. Posiciona los paneles para que no se apilen al cargar */
         #panel-control, #panel-navegacion, #info-modal {
             position: absolute;
         }
-
-        /* 3. ¡YA NO OCULTAMOS LOS PANELES POR ID AQUÍ! */
-        /* El JavaScript (app.js) se encarga de añadir '.oculto' 
-        a los paneles correctos en DOMContentLoaded.
-        */
     </style>
 </head>
 <body>
-<div id="offline-indicator" class="oculto">
+    <div id="offline-indicator" class="oculto">
         Estás sin conexión. La app seguirá funcionando.
     </div>
+    <div id="alert-indicator" class="alerta-comunitaria oculto">
+        </div>
     <div id="map"></div>
+    <button id="btn-fab-reporte" class="fab-reporte" title="Reportar Incidente">
+        ⚠️
+    </button>
 
     <div id="panel-control" class="oculto">
         <div class="panel-header">
@@ -45,6 +41,7 @@
         <div class="tab-switch">
             <button id="btnModoViaje" class="tab-btn activo">Calcular Viaje</button>
             <button id="btnModoExplorar" class="tab-btn">Explorar Rutas</button>
+            <button id="btnModoReporte" class="tab-btn">Reportar</button>
         </div>
 
         <div id="panel-viaje"> 
@@ -75,10 +72,9 @@
             <button id="btnIniciarRuta" style="display:none;">Iniciar Ruta</button>
             <button id="btnLimpiar" style="display:none;">Nueva Búsqueda</button>
         </div>
-
+        
         <div id="panel-explorar" class="oculto">
             <div id="controles-explorar">
-                
                 <div class="control-grupo">
                     <button id="btnParaderosCercanos" class="btn-primario-full">
                         📍 Ver Paraderos Cerca de Mí
@@ -96,9 +92,37 @@
             </div>
             <button id="btnLimpiarExplorar">Limpiar Mapa</button>
         </div>
-    </div>
 
-    <div id="panel-navegacion" class="oculto">
+        <div id="panel-reporte" class="oculto">
+            <div id="controles-reporte">
+                <div class="info-seccion">
+                    <h5>Reporte Oficial (ARTEC)</h5>
+                    <p>Para un reporte formal, contacta directamente a la agencia:</p>
+                    <div class="info-botones-contacto">
+                        <a href="tel:9818119222" class="btn-info-accion">
+                            📞 Llamar (981 811 9222)
+                        </a>
+                        <a href="mailto:atencion.artec@campeche.gob.mx" class="btn-info-accion btn-secundario">
+                            ✉️ Enviar Correo
+                        </a>
+                    </div>
+                </div>
+
+                <div class="info-seccion">
+                    <h5>Reporte Comunitario (Próximamente)</h5>
+                    <p>Ayuda a otros usuarios reportando un problema en tu ruta actual. (Función en desarrollo)</p>
+                    
+                    <div class="reporte-botones-grupo">
+                        <button class="btn-reporte" data-tipo="RETRASO_GRAVE">🚌 Retraso Grave</button>
+                        <button class="btn-reporte" data-tipo="BUS_LLENO">🧍 Bus Lleno</button>
+                        <button class="btn-reporte" data-tipo="PARADA_OMITIDA">🛑 Parada Omitida</button>
+                        <button class="btn-reporte" data-tipo="RUTA_INCORRECTA">🗺️ Ruta Incorrecta</button>
+                    </div>
+                    </div>
+            </div>
+        </div>
+
+    </div> <div id="panel-navegacion" class="oculto">
         <div id="instruccion-actual">Cargando instrucción...</div>
         
         <div id="nav-estado">
@@ -117,7 +141,6 @@
     <div id="panel-toggle">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </div>
-
     <div id="info-modal" class="modal-overlay oculto">
         <div class="modal-content">
             <span id="btnCloseModal" class="modal-close">&times;</span>
@@ -141,13 +164,27 @@
 
                 <p><small>Los horarios pueden variar por ruta y día festivo.</small></p>
             </div>
+            <div class="info-seccion">
+                <h5>¿Dudas o Reportes?</h5>
+                <p>Contacta a la Agencia Reguladora del Transporte (ARTEC):</p>
+                <div class="info-botones-contacto">
+                    <a href="tel:9818119222" class="btn-info-accion">
+                        📞 Llamar (981 811 9222)
+                    </a>
+                    <a href="mailto:atencion.artec@campeche.gob.mx" class="btn-info-accion btn-secundario">
+                        ✉️ Enviar Correo
+                    </a>
+                </div>
+            </div>
         </div>
     </div> 
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
     <script src='https://unpkg.com/@turf/turf@6/turf.min.js' defer></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js" defer></script>
     <script src="js/app.min.js" type="module"></script>
 </body>
 </html>

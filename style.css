@@ -667,3 +667,109 @@ body, html {
     background-color: white;
     border-radius: 50%;
 }
+
+/* --- Estilo para Botón Flotante (FAB) de Reporte --- */
+.fab-reporte {
+    position: absolute;
+    bottom: 25px; /* Encima de los controles de zoom */
+    left: 10px;
+    z-index: 999; /* Debajo del panel, pero encima del mapa */
+    background-color: #ffc107; /* Amarillo advertencia */
+    color: #333;
+    border: none;
+    border-radius: 50%;
+    width: 55px;
+    height: 55px;
+    font-size: 1.8em;
+    line-height: 55px; /* Centrado vertical */
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.fab-reporte:hover {
+    transform: scale(1.1);
+}
+
+/* --- Estilos para Panel de Reporte --- */
+#controles-reporte {
+    padding: 15px;
+    overflow-y: auto;
+}
+.reporte-botones-grupo {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2 columnas */
+    gap: 10px;
+}
+.btn-reporte {
+    padding: 12px 8px;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #333;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.btn-reporte:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f8f8f8;
+}
+
+/* (Copiamos los estilos del modal que ya teníamos) */
+.info-botones-contacto {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+.btn-info-accion {
+    display: block;
+    padding: 12px;
+    font-size: 1em;
+    font-weight: bold;
+    color: white;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+}
+.btn-info-accion.btn-secundario {
+    background-color: #6c757d;
+}
+.btn-info-accion:hover {
+    opacity: 0.9;
+}
+
+/* --- Estilo para Alerta Comunitaria --- */
+.alerta-comunitaria {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #ffc107; /* Amarillo advertencia */
+    color: #333; /* Texto oscuro para contraste */
+    padding: 10px;
+    text-align: center;
+    font-size: 0.9em;
+    font-weight: bold;
+    z-index: 9998; /* Justo debajo del indicador offline */
+    
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+/* Oculta si también está el banner offline (prioridad) */
+#offline-indicator:not(.oculto) + #alert-indicator {
+    display: none;
+}
+
+.alerta-comunitaria.oculto {
+    transform: translateY(100%);
+}
+.alerta-comunitaria:not(.oculto) {
+    transform: translateY(0);
+}

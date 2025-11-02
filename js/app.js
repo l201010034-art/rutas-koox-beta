@@ -1,6 +1,5 @@
 // js/app.js
 
-// 1. IMPORTACIÓN CORREGIDA
 import { 
     initMap, crearMarcadorUsuario, dibujarPlan, dibujarPaso, marcadores, map, 
     dibujarRutaExplorar, limpiarCapasDeRuta, 
@@ -10,6 +9,29 @@ import { getUbicacionUsuario, iniciarWatchLocation, detenerWatchLocation } from 
 import { encontrarRutaCompleta, crearMapaRutas, linkParaderosARutas } from './routeFinder.js';
 // js/app.js
 import { startNavigation, stopNavigation, updatePosition, activarModoTransbordo } from './navigationService.js';
+
+// ⬇️⬇️ CORRECCIÓN 2: Módulo Firebase (movido aquí) ⬇️⬇️
+const firebaseConfig = {
+  apiKey: "AIzaSyDozEdN4_g7u-D6XcJdysuns8-iLbfMS5I",
+  authDomain: "rutaskoox-alertas.firebaseapp.com",
+  // ❗️ ATENCIÓN: databaseURL es necesario para la v8 (compat)
+  databaseURL: "https://rutaskoox-alertas-default-rtdb.firebaseio.com/", // ⬅️ Asegúrate de que esta sea la URL de tu Realtime Database
+  projectId: "rutaskoox-alertas",
+  storageBucket: "rutaskoox-alertas.firebasestorage.app",
+  messagingSenderId: "332778953247",
+  appId: "1:332778953247:web:4460fef290b88fb1b1932a",
+  measurementId: "G-XH7ZKS825M"
+};
+
+// ⬇️⬇️ CORRECCIÓN 3: Usar la sintaxis "compat" (v8) ⬇️⬇️
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+
+// Obtener referencias a los servicios que usaremos
+const db = firebase.firestore(); // ⬅️ Sintaxis v8
+const rtdb = firebase.database(); // ⬅️ Sintaxis v8
+// ⬆️⬆️ FIN DEL MÓDULO FIREBASE ⬆️⬆️
+
 
 // --- 2. VARIABLES GLOBALES DE ESTADO ---
 let todosLosParaderos = [];
@@ -31,6 +53,9 @@ let distanciaRestanteEl, tiempoEsperaEl, tiempoViajeEl;
 let choicesRuta = null;
 let btnParaderosCercanos;
 let offlineIndicatorEl = null;
+let btnFabReporte, btnModoReporte, panelReporte;
+let alertIndicatorEl = null; // ⬅️ AÑADE ESTA LÍNEA
+let rtdbSnapshot = null; // Guardará la última copia de los datos de la RTDB
 
 // ⬇️⬇️ NUEVAS VARIABLES PARA MODO MANUAL Y GPS INICIAL ⬇️⬇️
 let choicesInicioManual = null;
@@ -45,6 +70,62 @@ let btnInfo, infoModal, btnCloseModal;
 
 // ⬇️⬇️ NUEVAS REFERENCIAS AL DOM ⬇️⬇️
 let selectInicioManual, controlInputInicio, controlSelectInicio;
+
+// js/app.js
+
+// ⬇️⬇️ INICIO DE FUNCIONES GLOBALES DE ALERTA Y RUTAS ⬇️⬇️
+
+/**
+ * Función auxiliar para obtener el ID + Nombre de la ruta.
+ * (Accede a 'todasLasRutas', que es una variable global)
+ */
+function getRutaNombrePorId(rutaId) {
+    const ruta = todasLasRutas.find(r => r.properties.id === rutaId);
+    // Retorna "ID (Nombre)" o simplemente el ID si no encuentra el nombre.
+    return ruta ? `${ruta.properties.id} (${ruta.properties.nombre})` : rutaId;
+}
+
+/**
+ * Función de ayuda para mostrar/ocultar el banner.
+ */
+function mostrarAlertaComunitaria(mensaje) {
+    if (mensaje) {
+        alertIndicatorEl.textContent = mensaje;
+        alertIndicatorEl.classList.remove('oculto');
+    } else {
+        alertIndicatorEl.classList.add('oculto');
+    }
+}
+
+/**
+ * Función que DIBUJA la alerta y contiene toda la lógica de filtro y caducidad.
+ * (Accede a 'rtdbSnapshot', 'getRutaActivaId', y 'alertIndicatorEl' que son globales)
+ */
+function actualizarDisplayAlertas() {
+    if (!rtdbSnapshot) return;
+
+    const alertas = rtdbSnapshot.val();
+    const rutaActiva = getRutaActivaId();
+    const ahora = Date.now();
+    
+    // --- LÓGICA DE FILTRADO Y CADUCIDAD ---
+    if (rutaActiva && alertas && alertas[rutaActiva]) {
+        const alerta = alertas[rutaActiva];
+        const nombreMostrar = getRutaNombrePorId(rutaActiva); 
+
+        // Verificamos si la alerta ya caducó
+        if (ahora < alerta.expiraEn) {
+            // Si la alerta es RELEVANTE y VIGENTE: la mostramos.
+            mostrarAlertaComunitaria(`⚠️ ALERTA: ${alerta.mensaje} en ${nombreMostrar}`);              
+            return; 
+        }
+    }
+    
+    // Si no hay ruta activa, la alerta caducó o no es relevante: Ocultamos.
+    mostrarAlertaComunitaria(null);
+}
+
+// ⬆️⬆️ FIN DE FUNCIONES GLOBALES DE ALERTA Y RUTAS ⬆️⬆️
 
 
 // --- 4. ARRANQUE DE LA APP ---
@@ -77,6 +158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCloseModal = document.getElementById('btnCloseModal');
     tiempoViajeEl = document.getElementById('tiempo-viaje');
     btnParaderosCercanos = document.getElementById('btnParaderosCercanos');
+    btnFabReporte = document.getElementById('btn-fab-reporte');
+    alertIndicatorEl = document.getElementById('alert-indicator'); // ⬅️ ASIGNA EL BANNER
+    btnModoReporte = document.getElementById('btnModoReporte');
+    panelReporte = document.getElementById('panel-reporte');
 
     // ⬇️⬇️ INICIO DEL MÓDULO OFFLINE ⬇️⬇️
     offlineIndicatorEl = document.getElementById('offline-indicator');
@@ -98,6 +183,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     actualizarEstadoOffline();
     // ⬆️⬆️ FIN DEL MÓDULO OFFLINE ⬆️⬆️
 
+// js/app.js (en DOMContentLoaded)
+
+    // ⬇️⬇️ INICIO MÓDULO FIREBASE (RECEPCIÓN DE ALERTAS) ⬇️⬇️
+// js/app.js (en DOMContentLoaded)
+
+    // ⬇️⬇️ INICIO MÓDULO FIREBASE (RECEPCIÓN DE ALERTAS) - MODIFICADO ⬇️⬇️
+    try {
+        const alertasRef = rtdb.ref('alertas'); // Referencia a la raíz de todas las alertas
+
+        // 2. Escucha cambios y llama a la función de dibujo
+        alertasRef.on('value', (snapshot) => {
+            rtdbSnapshot = snapshot; // ⬅️ Guardamos la copia global de los datos
+            actualizarDisplayAlertas(); // ⬅️ Dibujamos inmediatamente
+        });
+
+    } catch (err) {
+        console.error("No se pudo conectar a Firebase Realtime Database", err);
+    }
+
     // ⬇️⬇️ ASIGNACIÓN DE NUEVOS ELEMENTOS DEL DOM ⬇️⬇️
     selectInicioManual = document.getElementById('selectInicioManual'); // (de index.html corregido)
     controlInputInicio = document.getElementById('control-input-inicio');
@@ -114,6 +218,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnModoViaje.addEventListener('click', () => cambiarModo('viaje'));
     btnModoExplorar.addEventListener('click', () => cambiarModo('explorar'));
     btnLimpiarExplorar.addEventListener('click', limpiarMapa);
+    btnModoReporte.addEventListener('click', () => cambiarModo('reporte'));
+    // ⬇️⬇️ INICIO MÓDULO DE ENVÍO DE REPORTES ⬇️⬇️
+    document.querySelectorAll('.btn-reporte').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const tipoReporte = e.target.dataset.tipo;
+            handleEnviarReporte(tipoReporte);
+        });
+    });
+    // ⬆️⬆️ FIN MÓDULO ⬆️⬆️
+    
+    // El listener de la "Burbuja Flotante"
+    btnFabReporte.addEventListener('click', () => {
+        abrirPanelControl(); // <-- Reutilizamos la función que abre el panel
+        cambiarModo('reporte'); // <-- Cambia a la nueva pestaña
+    });
+
     btnInfo.addEventListener('click', () => infoModal.classList.remove('oculto'));
     btnCloseModal.addEventListener('click', () => infoModal.classList.add('oculto'));
     infoModal.addEventListener('click', (e) => {
@@ -531,20 +651,35 @@ function initChoicesSelectInicioManual() {
 }
 
 
+// js/app.js
+
 function cambiarModo(modo) {
-    if (modo === 'viaje') {
+    // 1. Ocultar todos los paneles
+    panelViaje.classList.add('oculto');
+    panelExplorar.classList.add('oculto');
+    panelReporte.classList.add('oculto');
+
+    // 2. Desactivar todos los botones de pestaña
+    btnModoViaje.classList.remove('activo');
+    btnModoExplorar.classList.remove('activo');
+    btnModoReporte.classList.remove('activo');
+
+    // 3. Activar el modo seleccionado
+if (modo === 'viaje') {
         panelViaje.classList.remove('oculto');
-        panelExplorar.classList.add('oculto');
         btnModoViaje.classList.add('activo');
-        btnModoExplorar.classList.remove('activo');
         limpiarMapa();
-    } else {
-        panelViaje.classList.add('oculto');
+    } else if (modo === 'explorar') {
         panelExplorar.classList.remove('oculto');
-        btnModoViaje.classList.remove('activo');
         btnModoExplorar.classList.add('activo');
         limpiarMapa();
+    } else if (modo === 'reporte') {
+        panelReporte.classList.remove('oculto');
+        btnModoReporte.classList.add('activo');
+        // No limpiamos el mapa, el usuario puede querer reportar sobre la ruta que está viendo
     }
+    // ⬇️ LÍNEA CLAVE AÑADIDA ⬇️
+    actualizarDisplayAlertas(); // ⬅️ Re-evalúa la alerta según el nuevo modo
 }
 
 function initChoicesSelectRuta() {
@@ -577,6 +712,7 @@ function handleExplorarRuta(rutaId) {
     const paraderosArray = paraderosSet ? [...paraderosSet] : [];
 
     dibujarRutaExplorar(ruta, paraderosArray);
+    actualizarDisplayAlertas(); // Re-evalúa la alerta para la nueva ruta seleccionada
 
     instruccionesExplorarEl.innerHTML = `
         <p>Mostrando <strong>${ruta.properties.id}</strong>.</p>
@@ -588,6 +724,7 @@ function handleExplorarRuta(rutaId) {
 function limpiarMapa() {
     dibujarPlan([]);
     limpiarCapasDeRuta();
+    actualizarDisplayAlertas(); // ⬅️ AÑADIDA
     marcadores.clearLayers(); // ⬅️ ¡AÑADE ESTA LÍNEA!
 
     // ⬇️⬇️ CORRECCIÓN AÑADIDA ⬇️⬇️
@@ -1489,5 +1626,77 @@ function handleMostrarRutasDeParadero(event) {
 function abrirPanelControl() {
     if (panelControl.classList.contains('oculto')) {
         panelControl.classList.remove('oculto');
+    }
+}
+
+// js/app.js (Al final del archivo, en el Módulo NUEVO)
+
+/**
+ * (MÓDULO ACTUALIZADO) Obtiene la ruta activa actual para el reporte.
+ * * Prioridad 1: Navegación GPS/Manual activa (máxima certeza).
+ * Prioridad 2: Ruta en modo Explorar (elección explícita).
+ * Prioridad 3: Ruta más común del paradero más cercano al GPS (estimación).
+ */
+function getRutaActivaId() {
+    // 1. ¿Estamos en navegación? (Prioridad 1)
+    if (rutaCompletaPlan && rutaCompletaPlan.length > 0 && pasoActual < rutaCompletaPlan.length) {
+        const paso = rutaCompletaPlan[pasoActual];
+        if (paso.tipo === 'bus') {
+            return paso.ruta.properties.id;
+        }
+    }
+    
+    // 2. ¿Estamos en modo explorar? (Prioridad 2)
+    if (choicesRuta && choicesRuta.getValue(true)) {
+        return choicesRuta.getValue(true);
+    }
+    
+    // 3. ¿Estamos en modo Reporte Y con ubicación GPS? (Prioridad 3: Reporte desde ubicación)
+    // Usamos 'paraderoInicioCercano' (el paradero más cercano al GPS)
+    if (paraderoInicioCercano && !panelNavegacion.classList.contains('oculto') === false) { 
+        // Solo aplica si el panel de Navegación NO está activo, es decir, el usuario
+        // está en el panel de Control (Reportar)
+        
+        // Obtener todas las rutas que pasan por ese paradero
+        const rutasEnParadero = paraderoInicioCercano.properties.rutas || [];
+        
+        if (rutasEnParadero.length > 0) {
+            // Regla de desempate simple: Usar la PRIMERA ruta en la lista
+            // (Se asume que la lista de rutas en el paradero está en orden lógico o numérico)
+            return rutasEnParadero[0];
+        }
+    }
+    
+    // 4. No hay ruta activa
+    return null;
+}
+
+/**
+ * (MÓDULO FIREBASE) Envía el reporte comunitario a Cloud Firestore.
+ */
+async function handleEnviarReporte(tipo) {
+    const rutaId = getRutaActivaId();
+    
+    if (!rutaId) {
+        alert("Por favor, inicia una navegación o selecciona una ruta en 'Explorar' para poder reportar un incidente sobre ella.");
+        return;
+    }
+
+    console.log(`Enviando reporte a Firebase: ${tipo} en ${rutaId}`);
+    
+    try {
+        // Añade un nuevo "documento" (reporte) a la colección "reportes_pendientes"
+        await db.collection("reportes_pendientes").add({
+            tipo: tipo,
+            rutaId: rutaId,
+            // Guardamos el timestamp para la "inteligencia" del backend
+            timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+        });
+
+        alert(`¡Gracias! Tu reporte para la ruta ${rutaId} ha sido enviado.`);
+
+    } catch (err) {
+        console.error("Error al enviar reporte a Firebase:", err);
+        alert("No se pudo enviar el reporte. Revisa tu conexión a internet.");
     }
 }
