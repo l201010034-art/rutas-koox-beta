@@ -689,32 +689,24 @@ function cambiarModo(modo) {
     btnModoViaje.classList.remove('activo');
     btnModoExplorar.classList.remove('activo');
     btnModoReporte.classList.remove('activo');
-
-    // --- ⬇️ NUEVA LÓGICA DE RESTAURACIÓN ⬇️ ---
     // Verificamos si la navegación está activa (usando 'watchId')
     const enNavegacion = (watchId !== null);
 
     // 3. Activar el modo seleccionado
     if (modo === 'viaje') {
         if (enNavegacion) {
-            // El usuario estaba en 'Reporte' y volvió a 'Viaje'
             panelControl.classList.add('oculto');
-            panelNavegacion.classList.remove('oculto');
-            // No activamos la pestaña 'viaje'
+            panelNavegacion.classList.remove('oculto'); // ⬅️ Vuelve al panel de navegación
         } else {
-            // Comportamiento normal
             panelViaje.classList.remove('oculto');
             btnModoViaje.classList.add('activo');
             limpiarMapa();
         }
     } else if (modo === 'explorar') {
         if (enNavegacion) {
-            // El usuario estaba en 'Reporte' y fue a 'Explorar'
             panelControl.classList.add('oculto');
-            panelNavegacion.classList.remove('oculto');
-            // No activamos la pestaña 'explorar'
+            panelNavegacion.classList.remove('oculto'); // ⬅️ Vuelve al panel de navegación
         } else {
-            // Comportamiento normal
             panelExplorar.classList.remove('oculto');
             btnModoExplorar.classList.add('activo');
             limpiarMapa();
@@ -723,8 +715,7 @@ function cambiarModo(modo) {
         panelReporte.classList.remove('oculto');
         btnModoReporte.classList.add('activo');
         // No limpiamos el mapa
-    }
-    // --- ⬆️ FIN DE LA NUEVA LÓGICA ⬆️ ---
+    }   
 
     // ⬇️ LÍNEA CLAVE AÑADIDA ⬇️
     actualizarDisplayAlertas(); // ⬅️ Re-evalúa la alerta según el nuevo modo
@@ -802,23 +793,44 @@ function limpiarMapa() {
         choicesInicioManual.clearInput();
         choicesInicioManual.removeActiveItems();
     }
-    // ⬆️ Fin Reseteo UI ⬆️
+    // ⬆️ Fin Reseteo UI ⬆️// js/app.js (en la función limpiarMapa)
+
+// ... (inicio de limpiarMapa) ...
+
+    // --- RESETEAR UI DE SELECTORES (Choices.js) ---
+    // ⬇️ La limpieza es ahora más segura y centralizada para evitar bugs ⬇️
+    if (choicesDestino) {
+        choicesDestino.clearInput();
+        choicesDestino.removeActiveItems();
+    }
+    if (choicesInicioManual) {
+        choicesInicioManual.clearInput();
+        choicesInicioManual.removeActiveItems();
+    }
+    if (choicesRuta) {
+        choicesRuta.clearInput();
+        choicesRuta.removeActiveItems();
+    }
+    
+    // Resetear UI de Modo Manual/GPS
+    if (controlSelectInicio) controlSelectInicio.style.display = 'none';
+    if (controlInputInicio) controlInputInicio.style.display = 'block'; 
 
     btnIniciarRuta.style.display = 'none';
     btnLimpiar.style.display = 'none';
     
     // --- RESETEAR MODO EXPLORAR ---
     instruccionesExplorarEl.innerHTML = "Selecciona una ruta para ver su trayecto y paraderos.";
-    if (choicesRuta) {
-            choicesRuta.clearInput();
-            choicesRuta.removeActiveItems();
-        }
     
-    // --- RESETEAR NAVEGACIÓN ---
+    // --- RESETEAR NAVEGACIÓN (Visual y Variables) ---
     panelNavegacion.classList.add('oculto');
-    document.getElementById('nav-estado').style.display = 'flex'; // ⬅️ Resetea el panel de nav
+    document.getElementById('nav-estado').style.display = 'flex'; // Resetea el panel de nav
+    tiempoEsperaEl.className = ''; 
     stopNavigation();
-    detenerWatchLocation(watchId); // ⬅️ Detiene el watch de NAVEGACIÓN
+    
+    // ❗️ IMPORTANTE: Solo detener el watch de navegación (watchId), NO el inicial.
+    detenerWatchLocation(watchId); 
+    watchId = null; // ⬅️ Aseguramos que el estado de navegación es nulo
     
     // --- RESETEAR UBICACIÓN ---
     // ⬇️ Lógica modificada ⬇️
@@ -1136,20 +1148,28 @@ function iniciarRutaProgresiva() {
     mostrarPaso(pasoActual);
 }
 
+// js/app.js (en la función finalizarRuta)
+
 function finalizarRuta() {
     console.log("Finalizando navegación.");
     panelNavegacion.classList.add('oculto'); 
     panelControl.classList.remove('oculto');
-    stopNavigation(); 
-    detenerWatchLocation(watchId); // Detiene el watch de navegación
     map.off('dragstart');
     
-    // ⬇️ RE-ACTIVAMOS EL WATCH DE UBICACIÓN INICIAL ⬇️
+    // ⬇️ LÍNEAS MODIFICADAS ⬇️
+    // 1. Reiniciar el watcher inicial (si estaba corriendo)
+    if (initialWatchId) {
+        detenerWatchLocation(initialWatchId);
+    }
     initialWatchId = iniciarWatchLocation(handleInitialLocation, handleLocationError);    
+    // 2. Limpiar el mapa (la función limpiarMapa se encarga de detener 'watchId' y 'stopNavigation')
     limpiarMapa();
 }
 
-// ⬇️ MODIFICADO (BUG 2): Acepta y pasa la VELOCIDAD ⬇️
+// js/app.js
+
+// ... (código previo de handleLocationUpdate) ...
+
 function handleLocationUpdate(pos) {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
@@ -1163,60 +1183,164 @@ function handleLocationUpdate(pos) {
         map.panTo(latlng);
     }
 
-    // ⬇️ Pasamos la velocidad al servicio de navegación ⬇️
-// js/app.js
-
     const navState = updatePosition(puntoInicio, speed); 
-    if (navState) {
-        actualizarUI_Navegacion(navState);
+    if (!navState) return; // Salimos si la navegación no está iniciada
+
+    // ----------------------------------------------------
+    // ⬇️⬇️ LÓGICA DE DETECCIÓN "A BORDO" (CORREGIDA) ⬇️⬇️
+    // ----------------------------------------------------
+    
+    // 1. Solo checkear si el paso actual es de tipo 'bus' o 'caminar'
+    if (rutaCompletaPlan && pasoActual < rutaCompletaPlan.length) {
+        const paso = rutaCompletaPlan[pasoActual];
+        
+        // Queremos detectar si subimos al bus si estamos en el paso de caminar/transbordo.
+        if (paso.tipo === 'caminar' || paso.tipo === 'transbordo') {
+            const proximoPasoBus = rutaCompletaPlan[pasoActual + 1];
+            
+            if (proximoPasoBus && proximoPasoBus.tipo === 'bus') {
+                const rutaId = proximoPasoBus.ruta.properties.id;
+                
+                // Buscar si tenemos data en tiempo real de alguna unidad en ESA ruta
+                // NOTA: Usamos 'map.eachLayer' para acceder a marcadores de la capa de buses en vivo
+                
+                // Creamos un array de todos los buses en esa ruta
+                let busesEnRuta = [];
+                map.eachLayer(layer => {
+                    // Verificamos si es un marcador de bus y si coincide con la rutaId
+                    if (layer.options && layer.options.rutaId === rutaId) {
+                        busesEnRuta.push(layer);
+                    }
+                });
+                
+                let busMasCercano = null;
+                let distanciaMinima = Infinity;
+                
+                // Encontramos el bus de ESA ruta más cercano a la posición del usuario
+                busesEnRuta.forEach(busMarker => {
+                    const busLatLng = busMarker.getLatLng();
+                    const busPunto = turf.point([busLatLng.lng, busLatLng.lat]);
+                    const distanciaMetros = turf.distance(puntoInicio, busPunto, { units: 'meters' }) * 1000;
+                    
+                    if (distanciaMetros < distanciaMinima) {
+                        distanciaMinima = distanciaMetros;
+                        busMasCercano = busMarker;
+                    }
+                });
+
+
+                const UMBRAL_A_BORDO = 20; // 20 metros de margen
+                
+                // Si encontramos un bus de la ruta que vamos a tomar muy cerca:
+                if (busMasCercano && distanciaMinima < UMBRAL_A_BORDO) {
+                    
+                    console.log(`DETECCIÓN A BORDO: Distancia ${distanciaMinima.toFixed(2)}m. Asumiendo subida.`);
+                    
+                    // 1. Desactivamos el modo transbordo/espera
+                    activarModoTransbordo(false); 
+                    
+                    // 2. Forzamos el avance al paso de BUS
+                    siguientePaso(); 
+                    
+                    return; // Terminamos la ejecución de la actualización
+                }
+            }
+        }
     }
-    // ⬇️ LE PASAMOS EL ESTADO DE NAVEGACIÓN ⬇️
+    // ----------------------------------------------------
+    // ⬆️⬆️ FIN LÓGICA DE DETECCIÓN "A BORDO" (CORREGIDA) ⬆️⬆️
+    // ----------------------------------------------------
+
+    actualizarUI_Navegacion(navState);
+
+    // ⬇️ Revisión de avance de paso (Bajada) ⬇️
     checkProximidad(navState); 
 }
 
-// js/app.js
+// ... (el resto del archivo, incluyendo la función checkProximidad) ...
 
 function checkProximidad(navState) {
     if (!rutaCompletaPlan || rutaCompletaPlan.length === 0 || pasoActual >= rutaCompletaPlan.length) return;
     const paso = rutaCompletaPlan[pasoActual];
-    let distanciaMetros = Infinity;
-
+    const umbralProximidadMetros = 40; // Umbral de proximidad general para alerta o avance
+    
     // Solo revisa proximidad si el GPS está activo
     if (!puntoInicio) return; 
 
+    // --- Lógica Común: Proyección sobre la ruta (Busca la ruta activa) ---
+    let puntoDeInteres = null;
+    let rutaGeoJSON = null;
+    
+    // 1. Definir el Punto y Ruta de Interés
     if (paso.tipo === 'caminar') {
-        distanciaMetros = turf.distance(puntoInicio, paso.paradero, { units: 'meters' });
-        if (distanciaMetros < 25) { 
-            console.log("Llegaste al paradero, avanzando al siguiente paso...");
-            siguientePaso();
-        }
+        // En caminar, el punto de interés es el paradero de subida.
+        // La "ruta" es la línea recta entre el GPS y el paradero.
+        puntoDeInteres = paso.paradero;
+        // Solo verificamos proximidad estricta para el paso de caminar (línea recta)
     } else if (paso.tipo === 'bus') {
-        distanciaMetros = turf.distance(puntoInicio, paso.paraderoFin, { units: 'meters' });
+        // En bus, el punto de interés es el paradero de bajada.
+        puntoDeInteres = paso.paraderoFin;
+        rutaGeoJSON = paso.ruta; // Usamos el GeoJSON de la ruta del bus
+    }
+
+    // --- 2. Detección de Avance (Lógica Central) ---
+
+    // A. Paso de Caminar (Inicio de la Ruta o Transbordo)
+    if (paso.tipo === 'caminar') {
+        const distanciaMetros = turf.distance(puntoInicio, puntoDeInteres, { units: 'meters' });
         
+        // Si la distancia es muy pequeña, AVANZA.
+        if (distanciaMetros < 25) { 
+            console.log("Llegaste al paradero de subida, avanzando...");
+            siguientePaso();
+            return;
+        }
+    }
+
+    // B. Paso de Bus (Monitoreo de Bajada)
+    if (paso.tipo === 'bus') {
+        const distanciaMetros = turf.distance(puntoInicio, puntoDeInteres, { units: 'meters' });
+        
+        // --- 2.1 Lógica de Alerta de Bajada (Proximidad) ---
         if (distanciaMetros < 300 && !alertaMostrada) {
             console.log("¡Alerta! Bajas pronto.");
             alertaMostrada = true;
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            instruccionActualEl.textContent = `¡BAJA PRONTO! (${paso.paraderoFin.properties.nombre})`;
+            instruccionActualEl.textContent = `¡BAJA PRONTO! (${puntoDeInteres.properties.nombre})`;
         }
+
+        // --- 2.2 Lógica de Avance (Proyección sobre la Ruta) ---
         
-        if (distanciaMetros < 40) {
-            console.log("Llegaste al paradero de destino, avanzando...");
+        try {
+            // Proyectar ambos puntos sobre la ruta de bus
+            const puntoUsuarioEnRuta = turf.nearestPointOnLine(rutaGeoJSON, puntoInicio);
+            const puntoParaderoEnRuta = turf.nearestPointOnLine(rutaGeoJSON, puntoDeInteres);
+
+            // Obtener las ubicaciones proyectadas (distancia en km desde el inicio de la polilínea)
+            const distUsuario = puntoUsuarioEnRuta.properties.location;
+            const distParadero = puntoParaderoEnRuta.properties.location;
             
-            const esPasoFinal = (pasoActual === rutaCompletaPlan.length - 1);
-            
-            // ⬇️ LÓGICA DE TRANSBORDO ACTUALIZADA ⬇️
-            if (!esPasoFinal) {
-                // ¡ESTO ES UN TRANSBORDO!
-                console.log("Activando contador de transbordo...");
-                activarModoTransbordo(); // ⬅️ Llama al servicio
+            // Si el usuario está 50 metros MÁS ADELANTE que el paradero...
+            // (La diferencia se multiplica por 1000 para pasar de km a metros)
+            if ((distUsuario - distParadero) * 1000 > umbralProximidadMetros) { 
                 
-                // Hacemos vibrar
-                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+                console.log("Detección de Avance: El usuario pasó el punto de bajada. Avanzando...");
+                
+                const esPasoFinal = (pasoActual === rutaCompletaPlan.length - 1);
+                
+                // Si NO es el paso final, activamos el transbordo
+                if (!esPasoFinal) {
+                    console.log("Activando contador de transbordo...");
+                    activarModoTransbordo(); 
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+                }
+                
+                // Avanzamos al siguiente paso (o finalizamos)
+                siguientePaso();
+                return;
             }
-            
-            // Avanzamos al siguiente paso (o finalizamos)
-            siguientePaso();
+        } catch (e) {
+            console.error("Error en lógica de proyección Turf:", e);
         }
     }
 }

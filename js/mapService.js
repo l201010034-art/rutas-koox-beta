@@ -291,6 +291,8 @@ export const iconoBusVivo = (rutaId) => L.divIcon({
     iconAnchor: [15, 15] // Centra el icono
 });
 
+// js/mapService.js
+
 /**
  * (NUEVO) Dibuja o actualiza un marcador de bus en el mapa.
  */
@@ -300,26 +302,33 @@ export function actualizarMarcadorBus(unidadId, rutaId, latlng) {
     const icono = iconoBusVivo(rutaId);
     const popupContenido = `<b>Unidad ${unidadId}</b><br>Ruta ${rutaId}`;
     
+    // ⬇️⬇️ CORRECCIÓN: Pasar la rutaId a las opciones del marcador ⬇️⬇️
+    const opcionesMarker = { 
+        icon: icono, 
+        zIndexOffset: 1000,
+        rutaId: rutaId // ⬅️ ¡CLAVE! Se guarda en layer.options.rutaId
+    };
+    
     if (marcadoresBuses.has(unidadId)) {
         // Actualiza el marcador existente
         marcadoresBuses.get(unidadId)
             .setLatLng(latlng)
             .setIcon(icono)
             .getPopup()
-            .setContent(popupContenido); // Actualiza el popup
+            .setContent(popupContenido);
+            
+        // Si ya existe, nos aseguramos de que tenga la opción, aunque no es estrictamente necesario aquí
+        marcadoresBuses.get(unidadId).options.rutaId = rutaId;
+
     } else {
         // Crea un nuevo marcador
-        const marker = L.marker(latlng, { 
-            icon: icono, 
-            zIndexOffset: 1000 // Asegura que esté sobre las rutas/paraderos
-        })
+        const marker = L.marker(latlng, opcionesMarker) 
         .addTo(capaBusesEnVivo)
         .bindPopup(popupContenido);
         
         marcadoresBuses.set(unidadId, marker);
     }
 }
-
 /**
  * (NUEVO) Elimina un marcador de bus del mapa.
  */

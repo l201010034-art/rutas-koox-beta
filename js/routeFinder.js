@@ -147,22 +147,48 @@ export function encontrarRutaCompleta(inicio, fin, todosLosParaderos, todasLasRu
     return resultadoFinal;
 }
 
-// ⬆️⬆️ FIN DE LA SECCIÓN CORREGIDA ⬆️⬆️
-
+// js/routeFinder.js
 
 /**
  * Enlaza Paraderos a Rutas usando Turf.js
- * (Esta función estaba bien y no se cambia)
+ * 💡 CORRECCIÓN V2: La vinculación se basa ÚNICAMENTE en la distancia perpendicular
+ * a la polilínea, lo que soluciona el problema de que el paradero inicial
+ * no tuviera rutas vinculadas.
  */
 export function linkParaderosARutas(paraderos, rutas) {
-    const DISTANCIA_MAXIMA = 40;
+    
+    // Distancia MÁXIMA que un paradero puede estar de la línea de la ruta (e.g., 25m)
+    // Usamos un valor estricto (25m) para asegurar que el paradero NO esté al otro lado
+    const UMBRAL_DISTANCIA_AL_TRAYECTO = 25; // ⬅️ VALOR CORREGIDO Y ESTRICTO
+
     paraderos.forEach(paradero => {
         paradero.properties.rutas = []; 
         rutas.forEach(ruta => {
-            // turf.js se accede globalmente desde el script en index.html
-            const distancia = turf.pointToLineDistance(paradero, ruta, { units: 'meters' });
-            if (distancia <= DISTANCIA_MAXIMA) {
-                paradero.properties.rutas.push(ruta.properties.id);
+            
+            // Si 'ruta' no tiene geometría, saltar
+            if (!ruta.geometry) return; 
+
+            // ⬇️ SE ELIMINA LA VERIFICACIÓN DE DISTANCIA < 40m ⬇️
+            
+            // 1. Verificar proximidad al TRAYECTO (Polilínea)
+            try {
+                const polilineaRuta = ruta; // 'ruta' es el Feature GeoJSON completo
+                
+                // Proyectamos el paradero sobre la línea de la ruta
+                const puntoMasCercanoEnLinea = turf.nearestPointOnLine(polilineaRuta, paradero);
+                
+                // Calculamos la distancia perpendicular a la línea
+                const distanciaAlTrayecto = puntoMasCercanoEnLinea.properties.dist * 1000; // 'dist' está en km
+                
+                // Si la distancia al trayecto es menor al umbral (25m), se vincula.
+                // Esto excluye paraderos de sentido contrario y asegura la pertenencia.
+                if (distanciaAlTrayecto < UMBRAL_DISTANCIA_AL_TRAYECTO) {
+                    paradero.properties.rutas.push(ruta.properties.id);
+                }
+                
+            } catch (e) {
+                console.warn(`Advertencia Turf: Error al proyectar ${paradero.properties.nombre} en la ruta ${ruta.properties.id}.`, e);
+                // No hay fallback. Si falla la proyección, el paradero no se vincula a esa ruta.
             }
         });
     });
