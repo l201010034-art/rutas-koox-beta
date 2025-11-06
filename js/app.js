@@ -3,7 +3,11 @@
 import { 
     initMap, crearMarcadorUsuario, dibujarPlan, dibujarPaso, marcadores, map, 
     dibujarRutaExplorar, limpiarCapasDeRuta, 
-    crearPopupInteligente, iconoParadero, iconoTransbordo, iconoDestino 
+    crearPopupInteligente, iconoParadero, iconoTransbordo, iconoDestino, 
+    actualizarMarcadorBus, 
+    removerMarcadorBus, 
+    limpiarCapaBuses
+
 } from './mapService.js';
 import { getUbicacionUsuario, iniciarWatchLocation, detenerWatchLocation } from './locationService.js';
 import { encontrarRutaCompleta, crearMapaRutas, linkParaderosARutas } from './routeFinder.js';
@@ -56,6 +60,9 @@ let offlineIndicatorEl = null;
 let btnFabReporte, btnModoReporte, panelReporte;
 let alertIndicatorEl = null; // ⬅️ AÑADE ESTA LÍNEA
 let rtdbSnapshot = null; // Guardará la última copia de los datos de la RTDB
+let dbGestion = null;
+let gestionApp = null;
+let firestoreListenerUnsubscribe = null;
 
 // ⬇️⬇️ NUEVAS VARIABLES PARA MODO MANUAL Y GPS INICIAL ⬇️⬇️
 let choicesInicioManual = null;
@@ -201,6 +208,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (err) {
         console.error("No se pudo conectar a Firebase Realtime Database", err);
     }
+    // ⬆️⬆️ FIN MÓDULO FIREBASE ⬆️⬆️
+
+    inicializarFirebaseGestion(); // Solo inicializa Firebase, no escucha nada.
 
     // ⬇️⬇️ ASIGNACIÓN DE NUEVOS ELEMENTOS DEL DOM ⬇️⬇️
     selectInicioManual = document.getElementById('selectInicioManual'); // (de index.html corregido)
@@ -228,11 +238,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     // ⬆️⬆️ FIN MÓDULO ⬆️⬆️
     
-    // El listener de la "Burbuja Flotante"
-    btnFabReporte.addEventListener('click', () => {
-        abrirPanelControl(); // <-- Reutilizamos la función que abre el panel
-        cambiarModo('reporte'); // <-- Cambia a la nueva pestaña
-    });
+// El listener de la "Burbuja Flotante"
+btnFabReporte.addEventListener('click', () => {
+
+    // 'watchId' (line 55) es nuestra variable global 
+    // que nos dice si la navegación está activa.
+    const enNavegacion = (watchId !== null); 
+
+    if (enNavegacion) {
+        // Si estamos navegando, ocultamos la navegación 
+        // y abrimos el panel de control
+        panelNavegacion.classList.add('oculto');
+        panelControl.classList.remove('oculto');
+    } else {
+        // Comportamiento normal (no en navegación)
+        abrirPanelControl();
+    }
+
+    // En ambos casos, cambiamos al modo reporte
+    cambiarModo('reporte');
+});
 
     btnInfo.addEventListener('click', () => infoModal.classList.remove('oculto'));
     btnCloseModal.addEventListener('click', () => infoModal.classList.add('oculto'));
@@ -347,7 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         todasLasRutas.forEach(feature => {
             const props = feature.properties;
             const nombreCompleto = props.name || props.Name || props.Ruta || "Ruta desconocida";
-            feature.properties.id = nombreCompleto.split(' ').slice(0, 2).join(' ');
+            feature.properties.id = nombreCompleto.split(' ').slice(0, 2).join('-').toLowerCase();
             feature.properties.nombre = nombreCompleto.split(' ').slice(2).join(' ');
         });
 
@@ -664,20 +689,42 @@ function cambiarModo(modo) {
     btnModoExplorar.classList.remove('activo');
     btnModoReporte.classList.remove('activo');
 
+    // --- ⬇️ NUEVA LÓGICA DE RESTAURACIÓN ⬇️ ---
+    // Verificamos si la navegación está activa (usando 'watchId')
+    const enNavegacion = (watchId !== null);
+
     // 3. Activar el modo seleccionado
-if (modo === 'viaje') {
-        panelViaje.classList.remove('oculto');
-        btnModoViaje.classList.add('activo');
-        limpiarMapa();
+    if (modo === 'viaje') {
+        if (enNavegacion) {
+            // El usuario estaba en 'Reporte' y volvió a 'Viaje'
+            panelControl.classList.add('oculto');
+            panelNavegacion.classList.remove('oculto');
+            // No activamos la pestaña 'viaje'
+        } else {
+            // Comportamiento normal
+            panelViaje.classList.remove('oculto');
+            btnModoViaje.classList.add('activo');
+            limpiarMapa();
+        }
     } else if (modo === 'explorar') {
-        panelExplorar.classList.remove('oculto');
-        btnModoExplorar.classList.add('activo');
-        limpiarMapa();
+        if (enNavegacion) {
+            // El usuario estaba en 'Reporte' y fue a 'Explorar'
+            panelControl.classList.add('oculto');
+            panelNavegacion.classList.remove('oculto');
+            // No activamos la pestaña 'explorar'
+        } else {
+            // Comportamiento normal
+            panelExplorar.classList.remove('oculto');
+            btnModoExplorar.classList.add('activo');
+            limpiarMapa();
+        }
     } else if (modo === 'reporte') {
         panelReporte.classList.remove('oculto');
         btnModoReporte.classList.add('activo');
-        // No limpiamos el mapa, el usuario puede querer reportar sobre la ruta que está viendo
+        // No limpiamos el mapa
     }
+    // --- ⬆️ FIN DE LA NUEVA LÓGICA ⬆️ ---
+
     // ⬇️ LÍNEA CLAVE AÑADIDA ⬇️
     actualizarDisplayAlertas(); // ⬅️ Re-evalúa la alerta según el nuevo modo
 }
@@ -713,7 +760,7 @@ function handleExplorarRuta(rutaId) {
 
     dibujarRutaExplorar(ruta, paraderosArray);
     actualizarDisplayAlertas(); // Re-evalúa la alerta para la nueva ruta seleccionada
-
+    iniciarEscuchaBuses(rutaId, null); // Inicia escucha de buses para esta ruta
     instruccionesExplorarEl.innerHTML = `
         <p>Mostrando <strong>${ruta.properties.id}</strong>.</p>
         <p>Esta ruta tiene aproximadamente <strong>${paraderosArray.length}</strong> paraderos.</p>
@@ -726,6 +773,7 @@ function limpiarMapa() {
     limpiarCapasDeRuta();
     actualizarDisplayAlertas(); // ⬅️ AÑADIDA
     marcadores.clearLayers(); // ⬅️ ¡AÑADE ESTA LÍNEA!
+    detenerEscuchaBuses(); // ⬅️ AÑADE ESTA LÍNEA
 
     // ⬇️⬇️ CORRECCIÓN AÑADIDA ⬇️⬇️
     // Esto resetea el texto del panel de "Opciones de ruta"
@@ -796,12 +844,25 @@ function limpiarMapa() {
 // ... (el resto de tu app.js) ...
 
 
+// (CORREGIDO)
 function togglePanel() {
-    const enNavegacion = !panelNavegacion.classList.contains('oculto');
+    // ❗️ Corregido: Usar la variable global 'watchId'
+    const enNavegacionReal = (watchId !== null); 
 
-    if (enNavegacion) {
+    if (enNavegacionReal) {
+        // Si estamos en navegación, el toggle SIEMPRE afecta
+        // al panel de navegación
         panelNavegacion.classList.toggle('oculto');
+
+        // Si al hacerlo, el panel de control estaba visible 
+        // (por un reporte), lo ocultamos.
+        if (!panelControl.classList.contains('oculto')) {
+            panelControl.classList.add('oculto');
+        }
+
     } else {
+        // Si NO estamos en navegación, el toggle
+        // afecta al panel de control (comportamiento original)
         panelControl.classList.toggle('oculto');
     }
 }
@@ -1068,7 +1129,7 @@ function iniciarRutaProgresiva() {
         watchId = null; // No hay GPS
         autoCentrar = true; 
     }
-    
+    llamarEscuchaParaPaso(pasoActual);
     // Mostramos el primer paso para ambos modos
     mostrarPaso(pasoActual);
 }
@@ -1169,6 +1230,7 @@ function siguientePaso() {
         autoCentrar = true; 
         alertaMostrada = false;
         mostrarPaso(pasoActual);
+        llamarEscuchaParaPaso(pasoActual);
     }
 }
 
@@ -1178,6 +1240,7 @@ function pasoAnterior() {
         autoCentrar = true; 
         alertaMostrada = false;
         mostrarPaso(pasoActual);
+        llamarEscuchaParaPaso(pasoActual);
     }
 }
 
@@ -1698,5 +1761,218 @@ async function handleEnviarReporte(tipo) {
     } catch (err) {
         console.error("Error al enviar reporte a Firebase:", err);
         alert("No se pudo enviar el reporte. Revisa tu conexión a internet.");
+    }
+}
+
+/**
+ * (NUEVO) Detiene la escucha de buses en vivo
+ */
+function detenerEscuchaBuses() {
+    if (firestoreListenerUnsubscribe) {
+        firestoreListenerUnsubscribe(); // Se desconecta de Firestore
+        firestoreListenerUnsubscribe = null;
+        console.log("Escucha de buses en vivo DETENIDA.");
+    }
+    limpiarCapaBuses(); // Limpia los iconos de buses del mapa
+    mostrarInfoETA(null); // Oculta el panel de ETA
+}
+
+/**
+ * (NUEVO) Muestra/Oculta la información de ETA en la UI
+ */
+function mostrarInfoETA(info) {
+    const etaContenedor = document.getElementById('eta-info');
+    if (!etaContenedor) return;
+
+    if (!info) {
+        etaContenedor.style.display = 'none';
+        etaContenedor.innerHTML = '';
+        return;
+    }
+    
+    let contenido = `<strong>Próximo bus (Unidad ${info.id}):</strong>`;
+    
+    if (info.etaMinutos) {
+        contenido += `<p>Llega a tu parada en aprox. <strong>${info.etaMinutos} min</strong>.</p>`;
+    } else {
+        contenido += `<p>Está a <strong>${info.distanciaMetros.toFixed(0)} m</strong> de tu parada.</p>`;
+    }
+    
+    etaContenedor.innerHTML = contenido;
+    etaContenedor.style.display = 'block';
+}
+
+
+/**
+ * (NUEVO) Inicia la escucha de buses en vivo (el nuevo cerebro)
+ * @param {string} filtroRutaId - El ID de la ruta que queremos ver (ej. 'koox-06')
+ * @param {object} paraderoDeInteres - El paradero GeoJSON donde esperamos el bus
+ */
+function iniciarEscuchaBuses(filtroRutaId, paraderoDeInteres) {
+    if (!dbGestion) {
+        console.error("Firebase (Gestión) no está inicializado.");
+        return;
+    }
+    
+    // Detenemos cualquier escucha anterior
+    detenerEscuchaBuses();
+    
+    // 1. Definimos la consulta a Firestore
+    let query = dbGestion.collection('live_locations');
+    
+    // ¡LA MAGIA DEL FILTRO!
+    if (filtroRutaId) {
+        query = query.where('routeId', '==', filtroRutaId);
+        console.log(`Iniciando escucha de buses SOLO para la ruta: ${filtroRutaId}`);
+    } else {
+        // Esto no debería pasar según nuestra lógica, pero es un seguro.
+        console.log("Iniciando escucha de TODOS los buses (modo global)");
+    }
+
+    // 2. Nos conectamos con onSnapshot
+    firestoreListenerUnsubscribe = query.onSnapshot((snapshot) => {
+        let approachingBuses = []; // Buses que vienen hacia nosotros
+        const rutaGeoJSON = todasLasRutas.find(r => r.properties.id === filtroRutaId);
+
+        snapshot.docChanges().forEach((change) => {
+            const unidadId = change.doc.id;
+            const data = change.doc.data();
+
+            if (change.type === 'added' || change.type === 'modified') {
+                if (!data.lat || !data.lng || !data.routeId) return;
+                
+                // Dibuja o mueve el bus en el mapa
+                actualizarMarcadorBus(unidadId, data.routeId, [data.lat, data.lng]);
+                
+                // 3. Lógica de cálculo de ETA (si aplica)
+                if (paraderoDeInteres && rutaGeoJSON) {
+                    try {
+                        const busPunto = turf.point([data.lng, data.lat]);
+                        
+                        // Proyectamos el bus y la parada sobre la línea de la ruta
+                        const puntoBusEnRuta = turf.nearestPointOnLine(rutaGeoJSON, busPunto);
+                        const puntoParaderoEnRuta = turf.nearestPointOnLine(rutaGeoJSON, paraderoDeInteres.geometry.coordinates);
+                        
+                        // Obtenemos la distancia (en km) a lo largo de la línea
+                        const distBus = puntoBusEnRuta.properties.location;
+                        const distParadero = puntoParaderoEnRuta.properties.location;
+                        
+                        const distanciaRelativaKm = distParadero - distBus;
+
+                        // Si la distancia es > 0, el bus aún no ha pasado
+                        if (distanciaRelativaKm > 0.01) { // 10 metros de margen
+                            
+                            // Cortamos el pedazo de ruta que le falta
+                            const tramoFaltante = turf.lineSlice(puntoBusEnRuta, puntoParaderoEnRuta, rutaGeoJSON);
+                            const distanciaMetros = turf.length(tramoFaltante, { units: 'meters' });
+                            
+                            approachingBuses.push({
+                                id: unidadId,
+                                distanciaMetros: distanciaMetros,
+                                speed: data.speed || 0 // Velocidad en m/s
+                            });
+                        }
+                    } catch (e) { console.error("Error calculando ETA con Turf:", e); }
+                }
+                
+            } else if (change.type === 'removed') {
+                // El bus terminó turno
+                removerMarcadorBus(unidadId);
+            }
+        }); // Fin forEach docChanges
+
+        // 4. Decidimos cuál es el bus más cercano
+        if (approachingBuses.length > 0) {
+            // Ordenamos por distancia (el más cercano primero)
+            approachingBuses.sort((a, b) => a.distanciaMetros - b.distanciaMetros);
+            const nextBus = approachingBuses[0];
+            
+            let etaMinutos = null;
+            // Calculamos ETA solo si el bus se está moviendo (más de 3.6 km/h)
+            if (nextBus.speed > 1.0) { 
+                etaMinutos = Math.round((nextBus.distanciaMetros / nextBus.speed) / 60);
+            }
+            
+            mostrarInfoETA({ 
+                id: nextBus.id, 
+                etaMinutos: etaMinutos, 
+                distanciaMetros: nextBus.distanciaMetros 
+            });
+            
+        } else if (paraderoDeInteres) {
+            // No hay buses aproximándose
+            mostrarInfoETA({ id: 'N/A', etaMinutos: null, distanciaMetros: 999999 }); // Mostramos "No hay buses"
+            document.getElementById('eta-info').innerHTML = '<p>No hay buses de esta ruta aproximándose a tu parada.</p>';
+        } else {
+            // Estamos en modo explorar (sin ETA), ocultamos el panel
+            mostrarInfoETA(null);
+        }
+
+    }, (error) => {
+        console.error("Error en escucha de Firestore:", error);
+    });
+}
+
+// js/app.js
+
+/**
+ * (NUEVO) Revisa el paso actual y decide si debe
+ * iniciar la escucha de buses (y para dónde).
+ */
+function llamarEscuchaParaPaso(indicePaso) {
+    // 1. Detenemos cualquier escucha anterior
+    detenerEscuchaBuses(); 
+
+    const paso = rutaCompletaPlan[indicePaso];
+    if (!paso) return;
+
+    // 2. LÓGICA DE ETA (Tu corrección):
+    // Solo queremos calcular ETA si estamos CAMINANDO o en TRANSBORDO
+    if (paso.tipo === 'caminar' || paso.tipo === 'transbordo') {
+        
+        // Buscamos el SIGUIENTE paso (que debe ser 'bus')
+        const proximoPasoBus = rutaCompletaPlan[indicePaso + 1];
+        
+        if (proximoPasoBus && proximoPasoBus.tipo === 'bus') {
+            const rutaId = proximoPasoBus.ruta.properties.id;
+            // ¡Clave! El paradero de interés es donde vamos a SUBIR.
+            const paraderoDeSubida = proximoPasoBus.paraderoInicio;
+            
+            // Iniciamos la escucha para el bus que vamos a tomar
+            console.log(`Buscando ETA para ${rutaId} en ${paraderoDeSubida.properties.nombre}`);
+            iniciarEscuchaBuses(rutaId, paraderoDeSubida);
+        }
+    }
+    
+    // 3. Si el paso actual es 'bus' o 'fin', NO llamamos a
+    // iniciarEscuchaBuses(). Esto oculta automáticamente el panel
+    // de ETA y los buses (¡justo como querías!)
+}
+
+// js/app.js
+
+/**
+ * (NUEVO) Inicializa la app de Firebase (Gestión)
+ * (Este código lo movimos desde DOMContentLoaded)
+ */
+function inicializarFirebaseGestion() {
+    const gestionFirebaseConfig = {
+      apiKey: "AIzaSyDcaVTGa3j1YZjbd1D52wNNc1qk7VnrorY",
+      authDomain: "rutaskoox-gestion.firebaseapp.com",
+      projectId: "rutaskoox-gestion",
+      storageBucket: "rutaskoox-gestion.firebasestorage.app",
+      messagingSenderId: "2555756265",
+      appId: "1:2555756265:web:c6f7487ced40a4f6f87538",
+      measurementId: "G-81656MC0ZC"
+    };
+
+    try {
+        // Le damos un nombre ("gestionApp") para que no entre en conflicto
+        // con tu app de "alertas"
+        gestionApp = firebase.initializeApp(gestionFirebaseConfig, "gestionApp");
+        dbGestion = gestionApp.firestore();
+        console.log("Servicio de Gestión Firebase inicializado.");
+    } catch (err) {
+        console.error("Error inicializando Firebase Gestión", err);
     }
 }

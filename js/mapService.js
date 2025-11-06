@@ -6,6 +6,10 @@ let userMarker = null;
 export let marcadores = null;
 export let map = null;
 
+// ⬇️ NUEVAS VARIABLES PARA BUSES EN VIVO ⬇️
+export let capaBusesEnVivo = null;
+const marcadoresBuses = new Map(); // Almacena { unidadId -> marker }
+
 export function initMap() {
     map = L.map('map', {
         zoomControl: false,
@@ -18,6 +22,10 @@ export function initMap() {
     
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     marcadores = L.layerGroup().addTo(map);
+    
+    // ⬇️ NUEVA LÍNEA ⬇️
+    capaBusesEnVivo = L.layerGroup().addTo(map); // Añade la capa para buses en vivo
+    
     return map;
 }
 
@@ -159,6 +167,9 @@ export function dibujarPaso(paso, puntoInicio) {
     limpiarCapasDeRuta(); // Limpia líneas
     marcadores.clearLayers(); // ⬅️ ¡AÑADIDO! Limpia marcadores viejos
     
+    // NOTA: No limpiamos los buses en vivo (limpiarCapaBuses)
+    // porque el usuario quiere verlos durante la navegación.
+    
     const inicioCoords = puntoInicio.geometry.coordinates; 
     const inicioLatLng = [inicioCoords[1], inicioCoords[0]]; 
 
@@ -217,7 +228,8 @@ export function dibujarPaso(paso, puntoInicio) {
  */
 export function dibujarRutaExplorar(ruta, paraderos) {
     limpiarCapasDeRuta();
-    marcadores.clearLayers(); // ⬅️ ¡AÑADE ESTA LÍNEA!
+    marcadores.clearLayers(); 
+    limpiarCapaBuses(); // ⬅️ ¡AÑADE ESTA LÍNEA! (Para ocultar buses en vivo y enfocarse en la ruta)
     if (!ruta) return;
 
     // 1. Dibujar la línea de la ruta
@@ -241,17 +253,9 @@ export function dibujarRutaExplorar(ruta, paraderos) {
         });
 
         // 2B. Crear el contenido del Popup "Inteligente"
-        // Obtenemos la lista de rutas que pasan por este paradero
-        const rutasEnParadero = (p.properties.rutas || []).join(', ');
+        // (Usa la función helper que ya teníamos)
+        const popupHTML = crearPopupInteligente(p);
         
-        const popupHTML = `
-            <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 5px;">${nombreParadero}</div>
-            <strong style="font-size: 0.9em;">Rutas:</strong>
-            <p style="font-size: 0.9em; margin: 4px 0;">${rutasEnParadero || 'N/A'}</p>
-            <button class="btn-popup btn-ver-rutas-paradero" data-paradero-id="${paraderoId}">
-                Ver detalles
-            </button>
-        `;
         // ⬆️⬆️ FIN DEL MÓDULO ⬆️⬆️
 
         // 2C. Crear el marcador
@@ -267,4 +271,69 @@ export function dibujarRutaExplorar(ruta, paraderos) {
     if (group.getBounds().isValid()) {
         map.fitBounds(group.getBounds().pad(0.1));
     }
+}
+
+
+// =================================================================
+// ⬇️⬇️ INICIO DEL NUEVO MÓDULO: BUSES EN VIVO ⬇️⬇️
+// =================================================================
+
+/**
+ * (NUEVO) Icono para el bus en vivo
+ * (Necesitarás añadir la clase .bus-vivo-icono a tu CSS)
+ */
+export const iconoBusVivo = (rutaId) => L.divIcon({
+    className: 'bus-vivo-icono',
+    // Mostramos solo el número de la ruta (ej. "06")
+    // (Asumimos que el routeId es 'koox-06' o '06')
+    html: `<span>${(rutaId || "??").replace('koox-', '')}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15] // Centra el icono
+});
+
+/**
+ * (NUEVO) Dibuja o actualiza un marcador de bus en el mapa.
+ */
+export function actualizarMarcadorBus(unidadId, rutaId, latlng) {
+    if (!latlng || latlng.length < 2 || !map) return;
+
+    const icono = iconoBusVivo(rutaId);
+    const popupContenido = `<b>Unidad ${unidadId}</b><br>Ruta ${rutaId}`;
+    
+    if (marcadoresBuses.has(unidadId)) {
+        // Actualiza el marcador existente
+        marcadoresBuses.get(unidadId)
+            .setLatLng(latlng)
+            .setIcon(icono)
+            .getPopup()
+            .setContent(popupContenido); // Actualiza el popup
+    } else {
+        // Crea un nuevo marcador
+        const marker = L.marker(latlng, { 
+            icon: icono, 
+            zIndexOffset: 1000 // Asegura que esté sobre las rutas/paraderos
+        })
+        .addTo(capaBusesEnVivo)
+        .bindPopup(popupContenido);
+        
+        marcadoresBuses.set(unidadId, marker);
+    }
+}
+
+/**
+ * (NUEVO) Elimina un marcador de bus del mapa.
+ */
+export function removerMarcadorBus(unidadId) {
+    if (marcadoresBuses.has(unidadId)) {
+        capaBusesEnVivo.removeLayer(marcadoresBuses.get(unidadId));
+        marcadoresBuses.delete(unidadId);
+    }
+}
+
+/**
+ * (NUEVO) Limpia todos los buses en vivo del mapa.
+ */
+export function limpiarCapaBuses() {
+    marcadoresBuses.forEach(marker => capaBusesEnVivo.removeLayer(marker));
+    marcadoresBuses.clear();
 }

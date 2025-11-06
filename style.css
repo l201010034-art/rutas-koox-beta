@@ -773,3 +773,55 @@ body, html {
 .alerta-comunitaria:not(.oculto) {
     transform: translateY(0);
 }
+
+/* --- AÑADIR AL FINAL DE style.css --- */
+
+/* Estilo para el ícono del bus en vivo */
+.bus-icon {
+    background: transparent !important;
+    border: none !important;
+    /* Opcional: añadir una pequeña sombra */
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+/* --- Estilo para Marcador de Bus en Vivo --- */
+.bus-vivo-icono {
+    background-color: #28a745; /* Verde (diferente del azul de paraderos) */
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    line-height: 26px; /* (30px - 2*2px border) */
+}
+.bus-vivo-icono span {
+    display: block;
+    transform: translateY(-1px); /* Ajuste visual fino */
+}
+
+/* --- Estilos para Info en Vivo y ETA --- */
+#info-en-vivo-container {
+    padding: 0 15px;
+}
+
+.eta-info {
+    display: none; /* Oculto por defecto */
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.eta-info strong {
+    color: #007bff;
+    font-size: 1.1em;
+}
+
+.eta-info p {
+    margin: 5px 0 0;
+    color: #333;
+    font-size: 0.95em;
+}
