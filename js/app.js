@@ -63,6 +63,7 @@ let rtdbSnapshot = null; // Guardará la última copia de los datos de la RTDB
 let dbGestion = null;
 let gestionApp = null;
 let firestoreListenerUnsubscribe = null;
+let initialWatchId = null; // ⬅️ AÑADIDA: Nuevo ID para la detección inicial (handleInitialLocation)
 
 // ⬇️⬇️ NUEVAS VARIABLES PARA MODO MANUAL Y GPS INICIAL ⬇️⬇️
 let choicesInicioManual = null;
@@ -391,7 +392,7 @@ btnFabReporte.addEventListener('click', () => {
         initChoicesSelectRuta(); // Explorar
         
         // ⬇️ MODIFICADO (BUG 1): Usar 'iniciarWatchLocation' para que el inicio se actualice en vivo ⬇️
-        iniciarWatchLocation(handleInitialLocation, handleLocationError);
+        initialWatchId = iniciarWatchLocation(handleInitialLocation, handleLocationError);
         actualizarPanelDeInicio();
 
     } catch (error) {
@@ -795,7 +796,8 @@ function limpiarMapa() {
 
     // ⬇️ Resetear UI de Modo Manual ⬇️
     if (controlSelectInicio) controlSelectInicio.style.display = 'none';
-    if (controlInputInicio) controlInputInicio.style.display = 'block';
+    if (controlInputInicio) controlInputInicio.style.display = 'block'; 
+
     if (choicesInicioManual) {
         choicesInicioManual.clearInput();
         choicesInicioManual.removeActiveItems();
@@ -808,9 +810,9 @@ function limpiarMapa() {
     // --- RESETEAR MODO EXPLORAR ---
     instruccionesExplorarEl.innerHTML = "Selecciona una ruta para ver su trayecto y paraderos.";
     if (choicesRuta) {
-        choicesRuta.clearInput();
-        choicesRuta.removeActiveItems();
-    }
+            choicesRuta.clearInput();
+            choicesRuta.removeActiveItems();
+        }
     
     // --- RESETEAR NAVEGACIÓN ---
     panelNavegacion.classList.add('oculto');
@@ -1103,7 +1105,7 @@ function iniciarRutaProgresiva() {
     if (puntoInicio) {
         // --- MODO GPS (ACTIVO) ---
         console.log("Iniciando modo de navegación GPS (Activo)...");
-        
+        detenerWatchLocation(initialWatchId);
         // Mostramos los contadores de tiempo real
         document.getElementById('nav-estado').style.display = 'flex'; 
         
@@ -1143,8 +1145,7 @@ function finalizarRuta() {
     map.off('dragstart');
     
     // ⬇️ RE-ACTIVAMOS EL WATCH DE UBICACIÓN INICIAL ⬇️
-    iniciarWatchLocation(handleInitialLocation, handleLocationError);
-    
+    initialWatchId = iniciarWatchLocation(handleInitialLocation, handleLocationError);    
     limpiarMapa();
 }
 
