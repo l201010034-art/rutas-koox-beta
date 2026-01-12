@@ -3,13 +3,25 @@
   "version": "1.0.0",
   "description": "App de rutas Koox Campeche",
   "private": true,
-  "scripts": {
-    "build:js": "terser js/app.js --module -o js/app.min.js -c -m",
-    "build:css": "cssnano style.css > style.min.css",
-    "build": "npm run build:js && npm run build:css"
-  },
+"scripts": {
+  "build:js": "esbuild www/js/app.js --bundle --minify --outfile=www/js/app.min.js",
+  "build:css": "cssnano www/style.css > www/style.min.css",
+  "build": "npm run build:js && npm run build:css"
+},
   "devDependencies": {
     "cssnano-cli": "^1.0.5",
+    "esbuild": "^0.27.2",
     "terser": "^5.31.0"
+  },
+  "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/dialog": "^8.0.0",
+    "@capacitor/geolocation": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/toast": "^8.0.0"
   }
 }

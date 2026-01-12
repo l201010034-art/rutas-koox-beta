@@ -13,6 +13,66 @@ import { getUbicacionUsuario, iniciarWatchLocation, detenerWatchLocation } from 
 import { encontrarRutaCompleta, crearMapaRutas, linkParaderosARutas } from './routeFinder.js';
 // js/app.js
 import { startNavigation, stopNavigation, updatePosition, activarModoTransbordo } from './navigationService.js';
+import { KeepAwake } from '@capacitor-community/keep-awake'; // CORRECTO
+import { Geolocation } from '@capacitor/geolocation';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Dialog } from '@capacitor/dialog';
+async function mantenerPantallaEncendida() {
+    try {
+        await KeepAwake.keepAwake();
+        console.log('Modo KeepAwake activado: La pantalla no se apagará.');
+    } catch (error) {
+        console.error('Error al activar KeepAwake:', error);
+    }
+}
+
+async function solicitarPermisosIniciales() {
+    try {
+        // --- 1. PERMISO DE UBICACIÓN (GPS) ---
+        const estadoGPS = await Geolocation.checkPermissions();
+        
+        if (estadoGPS.location !== 'granted') {
+            // Mostrar explicación "educada" antes de pedir el permiso
+            const { value } = await Dialog.confirm({
+                title: 'Permiso de Ubicación',
+                message: 'Para mostrarte tu posición en el mapa y avisarte cuando llegues a tu parada, Rutas Koox necesita acceder a tu ubicación. ¿Nos das permiso?',
+                okButtonTitle: 'Claro, activar',
+                cancelButtonTitle: 'Ahora no'
+            });
+
+            if (value) {
+                const resultado = await Geolocation.requestPermissions();
+                if (resultado.location !== 'granted') {
+                    console.warn('El usuario denegó el GPS.');
+                }
+            }
+        }
+
+        // --- 2. PERMISO DE NOTIFICACIONES ---
+        const estadoNotif = await LocalNotifications.checkPermissions();
+
+        if (estadoNotif.display !== 'granted') {
+            const { value } = await Dialog.confirm({
+                title: 'Alertas de Viaje',
+                message: '¿Te gustaría que te avisemos cuando estés cerca de bajar del autobús? Activa las notificaciones para no perder tu parada.',
+                okButtonTitle: 'Activar Alertas',
+                cancelButtonTitle: 'No gracias'
+            });
+
+            if (value) {
+                await LocalNotifications.requestPermissions();
+            }
+        }
+
+        // --- 3. ACTIVAR PANTALLA ENCENDIDA ---
+        // Esto no pide permiso al usuario, es automático, pero lo iniciamos aquí
+        await KeepAwake.keepAwake();
+        console.log("Modo viaje activo: Pantalla encendida.");
+
+    } catch (error) {
+        console.error('Error al solicitar permisos:', error);
+    }
+}
 
 // ⬇️⬇️ CORRECCIÓN 2: Módulo Firebase (movido aquí) ⬇️⬇️
 const firebaseConfig = {
@@ -170,6 +230,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     alertIndicatorEl = document.getElementById('alert-indicator'); // ⬅️ ASIGNA EL BANNER
     btnModoReporte = document.getElementById('btnModoReporte');
     panelReporte = document.getElementById('panel-reporte');
+    solicitarPermisosIniciales();
+    mantenerPantallaEncendida();
 
     // ⬇️⬇️ INICIO DEL MÓDULO OFFLINE ⬇️⬇️
     offlineIndicatorEl = document.getElementById('offline-indicator');
@@ -1465,7 +1527,7 @@ function actualizarUI_Navegacion(navState) {
 // --- 8. REGISTRO DEL SERVICE WORKER (PWA) ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('./sw.js')
       .then((reg) => {
         console.log('Service Worker: Registrado exitosamente', reg.scope);
       })
