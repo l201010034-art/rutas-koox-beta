@@ -292,5 +292,44 @@
         });
     </script>
     <script src="js/app.min.js" type="module"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then((registration) => {
+                    console.log('SW registrado: ', registration.scope);
+    
+                    // Detectar si hay una actualización esperando
+                    if (registration.waiting) {
+                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+    
+                    registration.onupdatefound = () => {
+                        const installingWorker = registration.installing;
+                        if (installingWorker == null) return;
+    
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // ¡Nueva actualización disponible!
+                                    console.log('Nueva versión detectada. Recargando...');
+                                    window.location.reload(); // <--- FORZAMOS RECARGA EN SAFARI
+                                }
+                            }
+                        };
+                    };
+                }).catch((err) => {
+                    console.log('SW fallo registro: ', err);
+                });
+            });
+    
+            // Escuchar si el SW toma el control (por el clients.claim() del activate)
+            let refreshing;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                window.location.reload();
+                refreshing = true;
+            });
+        }
+    </script>
 </body>
 </html>

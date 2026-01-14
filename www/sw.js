@@ -1,6 +1,6 @@
 // www/sw.js...
 
-const CACHE_VERSION = 'v5.2'; // <-- ¡Subí la versión!
+const CACHE_VERSION = 'v5.3'; // <-- ¡Subí la versión!
 const CACHE_NAME = `rutas-1oox-cache-${CACHE_VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -23,10 +23,17 @@ const APP_SHELL_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
+    // El skipWaiting es clave para que no espere a que cierres la pestaña
+    self.skipWaiting(); 
+    
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(APP_SHELL_URLS))
-            .then(() => self.skipWaiting())
+            .then((cache) => {
+                console.log('Abriendo caché y guardando archivos...');
+                // Usamos return para asegurar que si falla uno, se sepa
+                return cache.addAll(APP_SHELL_URLS);
+            })
+            .catch(err => console.error("Error al cachear archivos:", err))
     );
 });
 
@@ -35,42 +42,50 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
+                    // Borramos TODO lo que no sea la versión actual
                     if (cacheName !== CACHE_NAME) {
+                        console.log('Borrando caché antigua:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
-        }).then(() => self.clients.claim())
+        }).then(() => {
+            console.log('Service Worker activado y reclamando clientes');
+            return self.clients.claim(); // Toma control inmediato de Safari
+        })
     );
 });
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
-
     const requestUrl = new URL(event.request.url);
 
-    // CORRECCIÓN CLAVE: Usamos 'includes' para que funcione en Live Server y Celular
+    // Estrategia Network First para datos (asegura datos frescos)
     if (requestUrl.pathname.includes('/data/')) {
         event.respondWith(
-            caches.open(CACHE_NAME).then((cache) => {
-                return fetch(event.request).then((networkResponse) => {
-                    cache.put(event.request, networkResponse.clone());
-                    return networkResponse;
-                }).catch(() => cache.match(event.request));
-            })
+            fetch(event.request)
+                .then((networkResponse) => {
+                    return caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, networkResponse.clone());
+                        return networkResponse;
+                    });
+                })
+                .catch(() => caches.match(event.request)) // Fallback a caché si no hay internet
         );
         return;
     }
 
-    // Estrategia Cache First por defecto
+    // Estrategia Stale-While-Revalidate para todo lo demás (Velocidad + Actualización)
+    // Esto es mejor para Safari: Muestra lo rápido, pero actualiza en segundo plano
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request).then((networkResponse) => {
+        caches.match(event.request).then((cachedResponse) => {
+            const fetchPromise = fetch(event.request).then((networkResponse) => {
                 return caches.open(CACHE_NAME).then((cache) => {
                     cache.put(event.request, networkResponse.clone());
                     return networkResponse;
                 });
             });
+            return cachedResponse || fetchPromise;
         })
     );
 });
