@@ -95,7 +95,7 @@ export function updatePosition(puntoUsuario, speed) {
     if (movimientoDetectado) {
         enMovimiento = true;
         tiempoDetenido = 0; // Resetea el contador de espera
-        enModoTransbordo = false; // ⬅️ SI TE MUEVES, SE ACABA EL TRANSBORDO
+        //enModoTransbordo = false; // ⬅️ SI TE MUEVES, SE ACABA EL TRANSBORDO
     } else {
         enMovimiento = false;
         // Solo acumula tiempo detenido si NO estamos en modo transbordo

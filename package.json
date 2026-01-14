@@ -1,14 +1,15 @@
 {
   "name": "rutaskoox",
-  "version": "1.0.0",
+  "version": "2.1.10",
   "description": "App de rutas Koox Campeche",
   "private": true,
-"scripts": {
-  "build:js": "esbuild www/js/app.js --bundle --minify --outfile=www/js/app.min.js",
-  "build:css": "cssnano www/style.css > www/style.min.css",
-  "build": "npm run build:js && npm run build:css"
-},
+  "scripts": {
+    "build:js": "esbuild www/js/app.js --bundle --minify --outfile=www/js/app.min.js",
+    "build:css": "cssnano www/style.css > www/style.min.css",
+    "build": "npm run build:js && npm run build:css"
+  },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "cssnano-cli": "^1.0.5",
     "esbuild": "^0.27.2",
     "terser": "^5.31.0"

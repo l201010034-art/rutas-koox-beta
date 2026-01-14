@@ -1,723 +1,176 @@
-/* Reseteo básico y layout */
+/* =========================================
+   1. VARIABLES, RESETEO Y MODO OSCURO
+   ========================================= */
+   :root {
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --panel-bg: #ffffff;
+    --border-color: #eee;
+    --primary-color: #007bff; /* Azul Koox */
+    --nav-green: #e8f5e9;     /* Fondo header navegación */
+    --nav-green-text: #1b5e20;
+    --secondary-bg: #f8f8f8;
+    --shadow-color: rgba(0,0,0,0.2);
+    --map-filter: none;
+}
+
+/* --- MODO OSCURO --- */
+body.dark-mode {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --panel-bg: #1e1e1e;
+    --border-color: #333;
+    --primary-color: #4dabf5;
+    --nav-green: #1b2e1e;
+    --nav-green-text: #a5d6a7;
+    --secondary-bg: #2d2d2d;
+    --shadow-color: rgba(0,0,0,0.5);
+    /* Invierte el mapa base para efecto nocturno */
+    --map-filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
+/* --- ACCESIBILIDAD --- */
+body.large-text { font-size: 18px; }
+body.large-text h3 { font-size: 1.5em; }
+body.large-text button { font-size: 1.1em; padding: 15px; }
+
+body.high-contrast {
+    --primary-color: #0044cc;
+    --text-color: #000000;
+    --border-color: #000000;
+}
+body.high-contrast button, 
+body.high-contrast .opcion-ruta { border: 2px solid #000 !important; }
+
+/* RESETEO GENERAL */
 body, html {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    font-family: Arial, sans-serif;
-    overflow: hidden; 
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    background-color: var(--bg-color); color: var(--text-color);
 }
 
-#map {
-    height: 100%;
-    width: 100%;
-    z-index: 1; /* Capa base */
-}
+/* Espacio inferior para la barra de navegación */
+body { padding-bottom: 65px; box-sizing: border-box; }
 
-/* Panel de control flotante */
-#panel-control {
+/* Mapa ocupa todo el fondo */
+#map { height: 100%; width: 100%; z-index: 1; }
+
+/* Filtro para mapa oscuro */
+.leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out { filter: var(--map-filter); }
+.leaflet-marker-icon, .leaflet-popup-content-wrapper, .leaflet-tooltip { filter: none !important; }
+
+
+/* =========================================
+   2. PANELES DESLIZANTES (Control y Navegación)
+   ========================================= */
+#panel-control, #panel-navegacion {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    width: 370px; 
-    max-width: calc(100% - 20px);
-    box-sizing: border-box; 
-    max-height: 95%; /* Altura máxima */
-    background-color: white;
+    top: 0; left: 0;
+    width: 100%; 
+    max-width: 400px; /* En escritorio no ocupa todo */
+    height: auto;
+    max-height: calc(100% - 70px); /* Respetar barra inferior */
+    background-color: var(--panel-bg);
+    color: var(--text-color);
+    box-shadow: 0 4px 15px var(--shadow-color);
     z-index: 1000;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    display: flex; /* <-- Flex para sus hijos (header, tabs, paneles) */
-    flex-direction: column; /* <-- Apila a sus hijos */
-    transition: transform 0.3s ease-in-out;
-    padding-left: 0;
-}
-
-#panel-control.oculto {
-    transform: translateX(-400px);
-}
-
-.panel-header {
-    padding: 10px 15px 10px 50px;
-    border-bottom: 1px solid #eee;
-    position: relative;
-    flex-shrink: 0; /* <-- No encoger */
-}
-.panel-header h3 { margin: 0; }
-
-.control-grupo { 
-    margin-bottom: 10px; 
-    position: relative;
-    z-index: 10;
-}
-.control-grupo label {
-    display: block;
-    font-size: 0.8em;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-.control-grupo input {
-    width: 100%;
-    padding: 8px;
-    box-sizing: border-box; 
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-#inputInicio { background: #f0f0f0; font-style: italic; }
-
-#panel-control .choices {
-    z-index: 11;
-}
-
-#panel-instrucciones {
-    padding: 15px; /* <-- Padding uniforme */
-    overflow-y: auto; /* <-- SCROLL aquí */
-    border-top: 1px solid #eee;
-    flex-grow: 1; /* <-- Ocupa el espacio restante */
-}
-#panel-instrucciones p { margin-top: 0; }
-
-/* Botones */
-#btnIniciarRuta, #btnLimpiar {
-    display: block;
-    width: calc(100% - 30px);
-    margin: 0 15px 15px 15px;
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    flex-shrink: 0; /* <-- No encoger */
-}
-#btnIniciarRuta { background-color: #007bff; }
-#btnLimpiar { background-color: #6c757d; }
-#btnIniciarRuta:hover { background-color: #0056b3; }
-#btnLimpiar:hover { background-color: #5a6268; }
-
-/* --- Panel de Navegación --- */
-#panel-navegacion {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    width: 370px; 
-    max-width: calc(100% - 20px); 
-    padding-left: 50px;
-    box-sizing: border-box;
-    background: white;
-    z-index: 1001;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    display: flex;
+    
+    /* CORRECCIÓN ANIMACIÓN: display flex !important anula el display:none de .oculto */
+    display: flex !important; 
     flex-direction: column;
-    padding-top: 15px;
-    padding-right: 15px;
-    padding-bottom: 15px;
-}
-
-#instruccion-actual {
-    font-size: 1.2em;
-    font-weight: bold;
-    margin-bottom: 10px;
-    word-wrap: break-word;
-}
-#nav-estado {
-    display: flex;
-    justify-content: space-between;
-    margin: 10px 0;
-    padding: 10px 15px 10px 0;
-    border-top: 1px solid #eee;
-}
-#controles-nav {
-    display: flex;
-    justify-content: space-between;
-}
-#controles-nav button {
-    padding: 10px 15px;
-    border: 1px solid #ccc;
-    background: #f8f8f8;
-    border-radius: 4px;
-    cursor: pointer;
-}
-#controles-nav button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-#btnFinalizar {
-    background-color: #dc3545;
-    color: white;
-    border-color: #dc3545;
-}
-
-/* --- Botón Toggle --- */
-#panel-toggle {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 1001;
-    background-color: white;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 1; 
-    pointer-events: all; 
-    transform: translateX(0); 
-}
-#panel-toggle svg {
-    width: 24px;
-    height: 24px;
-}
-
-/* Oculta la burbuja si estamos en modo navegación */
-#panel-navegacion:not(.oculto) ~ #panel-toggle {
-    display: none;
-}
-
-/* --- Estilos de Opciones de Ruta --- */
-.opcion-ruta {
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    padding: 10px;
-}
-.opcion-ruta h4 {
-    margin-top: 0;
-    color: #007bff;
-}
-.opcion-ruta .btn-seleccionar {
-    background-color: #28a745;
-    color: white;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 10px;
-}
-.opcion-ruta .btn-seleccionar:hover {
-    background-color: #218838;
-}
-.oculto {
-    display: none !important;
-}
-
-/* --- Estilos para el Modo Explorar --- */
-.tab-switch {
-    display: flex;
-    background-color: #f0f0f0;
-    flex-shrink: 0; /* <-- No encoger */
-}
-.tab-btn {
-    flex-grow: 1;
-    padding: 12px 10px;
-    border: none;
-    background-color: transparent;
-    font-size: 0.9em;
-    font-weight: bold;
-    color: #555;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-    border-bottom: 2px solid transparent; 
-}
-.tab-btn.activo {
-    background-color: #fff;
-    color: #007bff;
-    border-bottom: 2px solid #007bff;
-}
-
-/* Paneles de modo */
-#panel-viaje, #panel-explorar {
-    padding-left: 50px;
-    flex-grow: 1; /* <-- Ocupa el espacio */
-    display: flex; /* <-- Flex para sus hijos */
-    flex-direction: column; /* <-- Apila a sus hijos */
-    min-height: 0; /* <-- AÑADE ESTA LÍNEA */
-}
-
-#panel-viaje.oculto, #panel-explorar.oculto {
-    display: none;
-}
-
-#controles-viaje, #controles-explorar {
-    padding: 15px 15px 0 15px;
-    overflow: visible;
-    flex-shrink: 0; /* <-- No encoger */
-}
-
-#panel-instrucciones-explorar {
-    padding: 15px;
-    overflow-y: auto; /* <-- SCROLL aquí */
-    border-top: 1px solid #eee;
-    flex-grow: 1; /* <-- Ocupa el espacio */
-}
-#panel-instrucciones-explorar p { 
-    margin-top: 0; 
-}
-
-#btnLimpiarExplorar {
-    display: block;
-    width: calc(100% - 30px);
-    margin: 0 15px 15px 15px;
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background-color: #6c757d;
-    flex-shrink: 0; /* <-- No encoger */
-}
-#btnLimpiarExplorar:hover { 
-    background-color: #5a6268; 
-}
-
-/* --- Estilos para el Panel de Información (Modal) --- */
-#btnInfo {
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    width: 28px;
-    height: 28px;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 50%;
-    font-size: 1.1em;
-    font-weight: bold;
-    color: #555;
-    cursor: pointer;
-    line-height: 24px;
-    text-align: center;
-    padding: 0;
-}
-#btnInfo:hover {
-    background-color: #e0e0e0;
-}
-
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background: white;
-    width: 90%;
-    max-width: 500px;
-    max-height: 80vh;
-    padding: 20px 30px;
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    position: relative;
-    overflow-y: auto;
-}
-.modal-close {
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 2em;
-    font-weight: bold;
-    color: #aaa;
-    cursor: pointer;
-    line-height: 1;
-}
-.modal-close:hover {
-    color: #333;
-}
-.modal-content h4 {
-    margin-top: 0;
-    color: #007bff;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-}
-.info-seccion {
-    margin-bottom: 15px;
-    border-bottom: 1px solid #f4f4f4;
-    padding-bottom: 10px;
-}
-.info-seccion:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-}
-.info-seccion h5 {
-    margin-bottom: 8px;
-}
-.info-seccion p {
-    margin: 5px 0;
-    line-height: 1.5;
-}
-
-/* --- Estilos para el Timer de Navegación --- */
-#tiempo-viaje {
-    color: #333; /* Color normal */
-}
-#tiempo-viaje.advertencia {
-    color: #dc3545; /* Rojo de advertencia */
-    font-weight: bold;
-}
-
-
-/* =================================================================
-   ⬇️⬇️⬇️ INICIO: REGLAS CORREGIDAS PARA CHOICES.JS ⬇️⬇️⬇️
-   ================================================================= */
-
-/* 1. ANULA la alineación central de la biblioteca Choices.js */
-
-/* Para la lista desplegable (dropdown) */
-.choices__item--choice {
-    flex-direction: column !important;     /* Apila el texto */
-    align-items: flex-start !important;  /* Alinea a la izquierda */
-    padding-top: 8px !important;         /* Añade espacio vertical */
-    padding-bottom: 8px !important;
-}
-
-/* Para el ítem ya seleccionado (en la caja) */
-.choices__item[data-item] {
-    flex-direction: column !important;     /* Apila el texto */
-    align-items: flex-start !important;  /* Alinea a la izquierda */
-    padding-top: 4px !important;         /* Menos espacio, es más compacto */
-    padding-bottom: 4px !important;
-}
-
-/* 2. DA ESTILO al texto (span) y subtexto (small) */
-/* Usamos selectores más específicos para asegurar que ganen */
-        
-/* Texto principal (Nombre del paradero) */
-.choices__item span,
-.choices__item--choice span {
-    display: block; 
-    font-weight: bold;
-    font-size: 1em; 
-    color: #333;
-    line-height: 1.4; /* Altura de línea normal */
-}
-
-/* Subtexto (Calle o Colonia) */
-.choices__item small,
-.choices__item--choice small {
-    display: block; 
-    font-size: 0.85em; 
-    color: #555;      
-    font-weight: normal; 
-    line-height: 1.3; /* Altura de línea normal */
-    opacity: 0.9;
-}
-/* --- Estilos para Alerta en Panel --- */
-.alerta-manual {
-    padding: 10px;
-    background-color: #fff3cd;
-    border: 1px solid #ffeeba;
-    border-radius: 4px;
-    margin-bottom: 15px;
-}
-.alerta-manual p {
-    margin: 0 0 10px 0;
-    font-size: 0.9em;
-    line-height: 1.4;
-}
-.alerta-manual-botones {
-    display: flex;
-    gap: 10px;
-}
-.alerta-manual-botones .btn-alerta {
-    flex-grow: 1;
-    padding: 10px;
-    font-size: 0.9em;
-    font-weight: bold;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-.alerta-manual-botones .btn-primario {
-    background-color: #007bff;
-    color: white;
-}
-.alerta-manual-botones .btn-secundario {
-    background-color: #6c757d;
-    color: white;
-}
-/* --- Estilos para Estados de Navegación --- */
-#tiempo-espera.en-movimiento {
-    color: #28a745; /* Verde */
-}
-#tiempo-espera.advertencia {
-    color: #dc3545; /* Rojo (para "Esperando") */
-    font-weight: bold;
-}
-#tiempo-espera.transbordo-timer {
-    color: #007bff; /* Azul */
-    font-weight: bold;
-    font-size: 0.9em; /* Un poco más pequeño para que quepa "Transbordo: 120:00" */
-}
-/* js/style.css (o style.min.css) */
-
-#controles-nav #btnFinalizar {
-    background-color: #dc3545;
-    color: white;
-    border-color: #dc3545;
-}
-.panel-acciones {
-    display: flex;
-    flex-direction: column; /* ⬅️ ¡AÑADE ESTA LÍNEA! */
-    gap: 10px;
-    margin-top: 15px;
-}
-
-/* Hacemos que el botón "Iniciar Ruta" que está DENTRO 
-  del panel ocupe el espacio principal
-*/
-.panel-acciones #btnIniciarRuta {
-    flex-grow: 1; /* Ocupa el espacio restante */
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background-color: #007bff; /* Color primario */
-}
-.panel-acciones #btnIniciarRuta:hover {
-    background-color: #0056b3;
-}
-
-
-/* Estilo para el botón secundario "Guardar Favorito" */
-.btn-secundario {
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    color: #333;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
-    white-space: nowrap; /* Evita que el texto se rompa */
-}
-.btn-secundario:hover {
-    background-color: #e0e0e0;
-}
-
-
-/* --- Estilos para Items Favoritos (con botón 'X') --- */
-
-.favorito-item {
-    position: relative; /* Clave para posicionar el botón 'X' */
-    cursor: pointer;
-}
-
-.delete-favorito {
-    position: absolute;
-    top: 5px;
-    right: 10px;
-    font-size: 1.5em; /* Tamaño de la 'X' */
-    color: #aaa;
-    font-weight: bold;
-    line-height: 1;
-    padding: 5px;
-    cursor: pointer;
-    z-index: 10; /* Se asegura de que esté por encima */
-}
-.delete-favorito:hover {
-    color: #dc3545; /* Rojo al pasar el mouse */
-}
-
-/* --- Estilo para Botón de Acción en Panel Explorar --- */
-.btn-primario-full {
-    width: 100%;
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background-color: #007bff; /* Color primario */
-}
-.btn-primario-full:hover {
-    background-color: #0056b3;
-}
-.btn-primario-full:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
-/* --- Estilo para Indicador Offline --- */
-#offline-indicator {
-    position: fixed; /* Se mantiene fijo en la pantalla */
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #333; /* Un gris oscuro */
-    color: white;
-    padding: 8px;
-    text-align: center;
-    font-size: 0.9em;
-    font-weight: bold;
-    z-index: 9999; /* Por encima de todo */
     
-    /* Transición para aparecer suavemente */
-    transform: translateY(100%); /* Oculto por defecto */
-    transition: transform 0.3s ease;
-}
-
-/* Cuando SÍ tiene la clase 'oculto', se esconde */
-#offline-indicator.oculto {
-    transform: translateY(100%);
-}
-
-/* Cuando NO tiene 'oculto', aparece */
-#offline-indicator:not(.oculto) {
+    /* ANIMACIÓN SUAVE */
     transform: translateY(0);
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    border-bottom-right-radius: 15px;
+    border-bottom-left-radius: 15px;
 }
 
-/* --- Estilo para Icono de Paradero (Llamativo) --- */
-.paradero-icono-koox {
-    background-color: #007bff; /* Azul Koox */
-    border: 3px solid white;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    
-    /* Pequeño punto interior para que parezca un objetivo */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.paradero-icono-koox::after {
-    content: '';
-    width: 6px;
-    height: 6px;
-    background-color: white;
-    border-radius: 50%;
+/* Estado oculto: Se desliza hacia ARRIBA (fuera de vista) */
+#panel-control.oculto, #panel-navegacion.oculto {
+    transform: translateY(-120%) !important;
+    pointer-events: none; /* Evitar clicks fantasmas */
 }
 
-/* --- Estilo para Icono de Transbordo (Llamativo) --- */
-.paradero-icono-transbordo {
-    background-color: #ffc107; /* ⬅️ Color Naranja/Amarillo */
-    border: 3px solid white;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    
-    /* Pequeño punto interior */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.paradero-icono-transbordo::after {
-    content: '';
-    width: 6px;
-    height: 6px;
-    background-color: white;
-    border-radius: 50%;
-}
-
-/* --- Estilo para el Botón DENTRO del Popup --- */
-.btn-popup {
-    width: 100%;
-    padding: 8px;
-    font-size: 0.9em;
-    font-weight: bold;
-    color: white;
-    background-color: #007bff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 8px;
-}
-.btn-popup:hover {
-    background-color: #0056b3;
-}
-
-/* ⬇️⬇️ ESTE ES EL BLOQUE QUE FALTABA ⬇️⬇️ */
-/* --- Estilo para Icono de Destino (Llamativo) --- */
-.paradero-icono-destino {
-    background-color: #dc3545; /* ⬅️ Color Rojo */
-    border: 3px solid white;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    
-    /* Pequeño punto interior */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.paradero-icono-destino::after {
-    content: '';
-    width: 6px;
-    height: 6px;
-    background-color: white;
-    border-radius: 50%;
-}
-
-/* --- Estilo para Botón Flotante (FAB) de Reporte --- */
-.fab-reporte {
-    position: absolute;
-    bottom: 25px; /* Encima de los controles de zoom */
-    left: 10px;
-    z-index: 999; /* Debajo del panel, pero encima del mapa */
-    background-color: #ffc107; /* Amarillo advertencia */
-    color: #333;
-    border: none;
-    border-radius: 50%;
-    width: 55px;
-    height: 55px;
-    font-size: 1.8em;
-    line-height: 55px; /* Centrado vertical */
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-.fab-reporte:hover {
-    transform: scale(1.1);
-}
-
-/* --- Estilos para Panel de Reporte --- */
-#controles-reporte {
+/* ENCABEZADOS DE PANEL */
+.panel-header {
     padding: 15px;
-    overflow-y: auto;
+    border-bottom: 1px solid var(--border-color);
+    display: flex; align-items: center; justify-content: space-between;
 }
+
+/* Encabezado especial verde para Navegación Activa */
+.panel-header-nav {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--nav-green);
+    color: var(--nav-green-text);
+    display: flex; align-items: center; justify-content: space-between;
+}
+
+.panel-header h3 { margin: 0; font-size: 1.2em; flex-grow: 1; margin-left: 10px; }
+
+/* Botones de Cabecera (Ajustes, Info) */
+.header-buttons { display: flex; gap: 10px; }
+.icon-btn, .info-btn {
+    width: 36px; height: 36px; background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color); border-radius: 50%;
+    color: var(--text-color); cursor: pointer; 
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2em; transition: background 0.2s;
+}
+.icon-btn:active { background-color: #ddd; }
+
+/* Botón Minimizar (Flecha simple) */
+.icon-btn-simple {
+    background: none; border: none; padding: 5px;
+    font-size: 1.8em; color: var(--text-color);
+    cursor: pointer; display: flex; align-items: center;
+}
+
+
+/* =========================================
+   3. CONTENIDOS DE PANELES
+   ========================================= */
+/* Inputs y Formularios */
+.control-grupo { margin-bottom: 15px; }
+.control-grupo label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 5px; opacity: 0.8; }
+.control-grupo input, .control-grupo select {
+    width: 100%; padding: 12px; box-sizing: border-box; 
+    border: 1px solid #ccc; border-radius: 8px;
+    background-color: var(--secondary-bg); color: var(--text-color); border-color: var(--border-color);
+    font-size: 1em;
+}
+
+/* Sub-paneles internos */
+#panel-viaje, #panel-explorar, #panel-reporte {
+    display: flex; flex-direction: column;
+    overflow-y: auto; /* Scroll si el contenido es largo */
+    max-height: 60vh;
+}
+#panel-viaje.oculto, #panel-explorar.oculto, #panel-reporte.oculto { display: none; }
+
+#controles-viaje, #controles-explorar, #controles-reporte { padding: 15px; }
+#panel-instrucciones, #panel-instrucciones-explorar { padding: 15px; border-top: 1px solid var(--border-color); }
+
+/* --- ESTILOS RESTAURADOS PARA REPORTES Y CONTACTO --- */
+
+/* Botones Grandes de Reporte */
 .reporte-botones-grupo {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* 2 columnas */
-    gap: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;
 }
 .btn-reporte {
-    padding: 12px 8px;
-    font-size: 0.9em;
-    font-weight: bold;
-    color: #333;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
+    padding: 15px 10px;
+    font-size: 0.95em; font-weight: bold; color: var(--text-color);
+    background-color: var(--secondary-bg); border: 1px solid var(--border-color);
+    border-radius: 8px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    transition: background 0.2s, transform 0.1s;
 }
-.btn-reporte:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background-color: #f8f8f8;
-}
+.btn-reporte:active { transform: scale(0.98); background-color: #eee; }
 
-/* (Copiamos los estilos del modal que ya teníamos) */
+/* Botones Azules/Gris de Contacto (Info) */
 .info-botones-contacto {
     display: flex;
     flex-direction: column;
@@ -725,103 +178,509 @@ body, html {
     margin-top: 10px;
 }
 .btn-info-accion {
-    display: block;
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    color: white;
-    background-color: #007bff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    text-decoration: none;
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 12px;
+    border-radius: 8px; text-decoration: none;
+    font-weight: bold; font-size: 1em;
+    transition: transform 0.2s, opacity 0.2s;
+    border: none; color: white;
+}
+.btn-info-accion:active { transform: scale(0.97); }
+
+.btn-azul { background-color: #007bff; box-shadow: 0 4px 6px rgba(0,123,255,0.2); }
+.btn-gris { background-color: #6c757d; box-shadow: 0 4px 6px rgba(108,117,125,0.2); }
+.btn-secundario { color: var(--text-color) !important; background-color: #e2e6ea; border: 1px solid #dae0e5; }
+
+.info-seccion { margin-bottom: 20px; }
+.info-seccion h5 { margin: 0 0 10px 0; font-size: 1em; color: var(--primary-color); }
+.separador-suave { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+
+
+/* =========================================
+   4. BARRA DE NAVEGACIÓN INFERIOR
+   ========================================= */
+.bottom-nav {
+    position: fixed; bottom: 0; left: 0;
+    width: 100%; height: 65px;
+    background-color: var(--panel-bg);
+    display: flex; justify-content: space-around; align-items: center;
+    box-shadow: 0 -2px 10px var(--shadow-color);
+    z-index: 2000;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border-color);
+}
+
+.nav-item {
+    background: none; border: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #999; font-size: 0.75em; cursor: pointer;
+    width: 20%; padding: 5px 0;
+    transition: color 0.2s;
+}
+.nav-item i { font-size: 1.5em; margin-bottom: 2px; transition: transform 0.2s; }
+.nav-item.activo { color: var(--primary-color); font-weight: bold; }
+.nav-item.activo i { transform: translateY(-3px); }
+
+
+/* =========================================
+   5. PANTALLAS COMPLETAS (Saldo / Recargas)
+   ========================================= */
+.pantalla-completa {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: calc(100% - 65px);
+    background-color: var(--secondary-bg);
+    z-index: 1500;
+    display: flex; justify-content: center; align-items: center;
+    padding: 20px; box-sizing: border-box;
+}
+.placeholder-content { text-align: center; color: var(--text-color); }
+.icono-grande { font-size: 5em; color: #ccc; display: block; margin-bottom: 20px; }
+.badge-desarrollo {
+    display: inline-block; background-color: #ffc107; color: #333;
+    padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; margin-top: 15px;
+}
+
+
+/* =========================================
+   6. MODALES (Ajustes, Info)
+   ========================================= */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6); z-index: 2100;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(2px);
+}
+.modal-content {
+    background-color: var(--panel-bg); width: 90%; max-width: 450px; max-height: 85vh;
+    padding: 0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    padding: 15px 20px; border-bottom: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center;
+    background-color: var(--secondary-bg);
+}
+.modal-header h4 { margin: 0; font-size: 1.1em; }
+
+.modal-close {
+    font-size: 2em; line-height: 0.8; cursor: pointer; color: #aaa;
+}
+.modal-close:hover { color: var(--text-color); }
+
+/* Ajuste del cuerpo del modal */
+.settings-content, .info-body { 
+    padding: 20px; overflow-y: auto; max-height: 70vh; 
+}
+.info-body p { margin: 10px 0; line-height: 1.5; }
+
+/* Caja verde para transbordo gratis */
+.alerta-verde {
+    background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px;
+    margin: 10px 0; text-align: center; border: 1px solid #c3e6cb;
+}
+
+/* Switches de Ajustes */
+.setting-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+.setting-item:last-child { border-bottom: none; }
+.setting-label { display: flex; flex-direction: column; }
+.setting-label span { font-weight: 500; }
+
+.switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc; transition: .4s; border-radius: 34px;
+}
+.slider:before {
+    position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px;
+    background-color: white; transition: .4s; border-radius: 50%;
+}
+input:checked + .slider { background-color: var(--primary-color); }
+input:checked + .slider:before { transform: translateX(24px); }
+
+
+/* =========================================
+   7. ELEMENTOS DEL MAPA & CHOICES
+   ========================================= */
+/* Botones primarios */
+#btnIniciarRuta, #btnLimpiar, #btnLimpiarExplorar, .btn-primario-full {
+    display: block; width: 100%; box-sizing: border-box;
+    margin: 10px 0; padding: 14px;
+    font-size: 1em; font-weight: bold; color: white;
+    border: none; border-radius: 8px; cursor: pointer;
     text-align: center;
 }
-.btn-info-accion.btn-secundario {
-    background-color: #6c757d;
-}
-.btn-info-accion:hover {
-    opacity: 0.9;
-}
+#btnIniciarRuta, .btn-primario-full { background-color: var(--primary-color); }
+#btnLimpiar, #btnLimpiarExplorar { background-color: #6c757d; }
 
-/* --- Estilo para Alerta Comunitaria --- */
-.alerta-comunitaria {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #ffc107; /* Amarillo advertencia */
-    color: #333; /* Texto oscuro para contraste */
-    padding: 10px;
-    text-align: center;
-    font-size: 0.9em;
-    font-weight: bold;
-    z-index: 9998; /* Justo debajo del indicador offline */
-    
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
+/* Correcciones Choices.js */
+.choices__inner, .choices__list--dropdown {
+    background-color: var(--secondary-bg) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-color) !important;
 }
+.choices__item--choice { color: var(--text-color) !important; }
 
-/* Oculta si también está el banner offline (prioridad) */
-#offline-indicator:not(.oculto) + #alert-indicator {
-    display: none;
+/* Marcadores */
+.paradero-icono-koox, .paradero-icono-transbordo, .paradero-icono-destino {
+    border: 3px solid white; border-radius: 50%; width: 16px; height: 16px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
 }
-
-.alerta-comunitaria.oculto {
-    transform: translateY(100%);
-}
-.alerta-comunitaria:not(.oculto) {
-    transform: translateY(0);
-}
-
-/* --- AÑADIR AL FINAL DE style.css --- */
-
-/* Estilo para el ícono del bus en vivo */
-.bus-icon {
-    background: transparent !important;
-    border: none !important;
-    /* Opcional: añadir una pequeña sombra */
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-}
-
-/* --- Estilo para Marcador de Bus en Vivo --- */
+.paradero-icono-koox { background-color: #007bff; }
+.paradero-icono-transbordo { background-color: #ffc107; }
+.paradero-icono-destino { background-color: #dc3545; }
 .bus-vivo-icono {
-    background-color: #28a745; /* Verde (diferente del azul de paraderos) */
+    background-color: #28a745; border: 2px solid white; border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5); color: white;
+    font-weight: bold; font-size: 14px; text-align: center; line-height: 26px;
+}
+
+
+/* =========================================
+   8. UTILS (Offline, Alertas, Splash)
+   ========================================= */
+.oculto { display: none !important; }
+
+#offline-indicator, #alert-indicator {
+    position: fixed; bottom: 65px; left: 0; width: 100%;
+    text-align: center; font-size: 0.9em; font-weight: bold;
+    z-index: 1900; padding: 8px;
+    transform: translateY(100%); transition: transform 0.3s ease;
+}
+#offline-indicator { background-color: #333; color: white; }
+#alert-indicator { background-color: #ffc107; color: #333; }
+
+#offline-indicator:not(.oculto), #alert-indicator:not(.oculto) { transform: translateY(0); }
+
+/* Ajustes de posición Leaflet */
+.leaflet-bottom { bottom: 75px !important; }
+
+/* =========================================
+   SPLASH SCREEN (PANTALLA DE CARGA)
+   ========================================= */
+   #web-splash {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: var(--bg-color); 
+    z-index: 99999;
+    /* Centrado del contenedor principal */
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    transition: opacity 0.5s ease-out;
+}
+
+.splash-content {
+    /* Centrado de los elementos internos */
+    display: flex;
+    flex-direction: column; /* Apila logo, texto y loader */
+    align-items: center;    /* Centra horizontalmente */
+    text-align: center;
+}
+
+.splash-logo { 
+    width: 120px; /* Un poco más grande para que luzca */
+    height: auto;
+    margin-bottom: 15px; 
+    /* Animación opcional de latido */
+    animation: pulse 2s infinite; 
+}
+
+.splash-content h2 {
+    margin: 10px 0 20px 0;
+    font-size: 1.5em;
+    color: #888; /* Color gris suave o usa var(--primary-color) */
+    font-weight: bold;
+}
+
+.loader {
+    border: 4px solid #f3f3f3; 
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%; 
+    width: 40px; 
+    height: 40px;
+    animation: spin 1s linear infinite; 
+}
+
+/* Animaciones */
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+/* =========================================
+   ESTILOS DE CONTROLES DE NAVEGACIÓN
+   ========================================= */
+
+   #controles-nav {
+    display: flex;
+    gap: 15px; /* Espacio entre botones */
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Estilo Base del Botón de Navegación */
+.btn-nav {
+    flex: 1; /* Para que ocupen el mismo ancho */
+    padding: 12px 15px;
+    border: none;
+    border-radius: 12px; /* Bordes redondeados modernos */
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Espacio entre icono y texto */
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Efecto al presionar */
+.btn-nav:active {
+    transform: scale(0.96);
+    box-shadow: none;
+}
+
+/* --- Variantes de Color --- */
+
+/* 1. Botón Siguiente (Primario - Azul) */
+.btn-nav-primario {
+    background-color: var(--primary-color);
+    color: white;
+}
+.btn-nav-primario:hover {
+    background-color: #0056b3; /* Azul un poco más oscuro */
+}
+
+/* 2. Botón Anterior (Secundario - Gris) */
+.btn-nav-secundario {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+.btn-nav-secundario:hover {
+    background-color: #e2e6ea;
+}
+
+/* 3. Botón Finalizar (Danger - Rojo) */
+.btn-nav-danger {
+    background-color: #dc3545; /* Rojo Bootstrap */
+    color: white;
+}
+.btn-nav-danger:hover {
+    background-color: #bd2130;
+}
+
+/* --- Estado Deshabilitado --- */
+.btn-nav:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #e9ecef;
+    color: #6c757d;
+    box-shadow: none;
+    transform: none; /* No animar si está deshabilitado */
+}
+
+/* =========================================
+   ESTILOS DE OPCIONES DE RUTA (Tarjetas)
+   ========================================= */
+
+/* El contenedor de cada opción (La tarjeta) */
+.opcion-ruta {
+    background-color: var(--bg-color); /* Fondo según tema (blanco/oscuro) */
+    border: 1px solid var(--border-color);
+    border-radius: 16px; /* Bordes redondeados */
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* Sombra suave */
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+/* Efecto hover en escritorio (opcional) */
+.opcion-ruta:hover {
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+/* Título de la opción (Ej: Opción 1) */
+.opcion-ruta h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--primary-color);
+    font-size: 1.1em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* La lista de pasos (1. Dirígete a...) */
+.opcion-ruta ol {
+    padding-left: 20px;
+    margin-bottom: 20px;
+    color: var(--text-color);
+}
+
+.opcion-ruta li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+    font-size: 0.95em;
+}
+
+/* --- EL BOTÓN DE SELECCIÓN --- */
+.btn-seleccionar {
+    width: 100%;
+    padding: 14px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1em;
+    font-weight: 600; /* Texto semi-negrita */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* Espacio entre texto e icono */
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2); /* Sombra azulada */
+}
+
+/* Estados del botón */
+.btn-seleccionar:hover {
+    background-color: #0056b3; /* Azul más oscuro */
+    transform: translateY(-1px);
+}
+
+.btn-seleccionar:active {
+    transform: scale(0.98); /* Efecto de click */
+    box-shadow: none;
+}
+
+/* Ajuste para Modo Oscuro (asegura legibilidad) */
+body.dark-mode .opcion-ruta {
+    background-color: #1e1e1e;
+    border-color: #333;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* =========================================
+   ESTILOS DE BÚSQUEDA Y CHIPS
+   ========================================= */
+
+/* Contenedor Input + Botón */
+.input-con-boton {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+/* Botón Lupa */
+.btn-lupa {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    color: var(--primary-color);
+    border-radius: 8px;
+    width: 46px; /* Ancho fijo */
+    cursor: pointer;
+    font-size: 1.2em;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+}
+.btn-lupa:active { background-color: #ddd; transform: scale(0.95); }
+
+/* Mensaje de resultado */
+.info-busqueda {
+    display: block; margin-top: 5px; font-size: 0.85em;
+    color: #28a745; background-color: #e8f5e9;
+    padding: 5px 10px; border-radius: 6px; border: 1px solid #c8e6c9;
+}
+
+/* --- CHIPS (Categorías) --- */
+.chips-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto; /* Scroll horizontal */
+    padding: 5px 2px 15px 2px; /* Padding abajo para la sombra */
+    margin-top: 10px;
+    /* Ocultar barra de scroll fea pero permitir scroll */
+    scrollbar-width: none; 
+}
+.chips-scroll::-webkit-scrollbar { display: none; }
+
+.chip {
+    white-space: nowrap; /* No romper línea */
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 14px;
+    border-radius: 20px; /* Forma de píldora */
+    font-size: 0.85em;
+    color: var(--text-color);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: transform 0.1s, background 0.2s;
+}
+
+.chip i { font-size: 1.1em; color: #777; }
+
+.chip:active { transform: scale(0.95); background-color: #f0f0f0; }
+
+/* Chip Especial Turismo */
+.chip-turismo {
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: white; border: none; font-weight: bold;
+}
+.chip-turismo i { color: white; }
+
+/* Modo Oscuro Chips */
+body.dark-mode .chip { background-color: #2d2d2d; border-color: #444; }
+body.dark-mode .chip:active { background-color: #444; }
+
+/* =========================================
+   NUEVOS ICONOS DEL MAPA (Leaflet DivIcons)
+   ========================================= */
+
+/* 1. USUARIO (Efecto GPS Pulsante) */
+.user-gps-marker {
+    background-color: #2196f3; /* Azul Google */
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    /* Animación de onda expansiva */
+    animation: gps-pulse 2s infinite; 
+}
+@keyframes gps-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(33, 150, 243, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+}
+
+/* 2. PARADERO (Subida / Bajada) */
+.icono-mapa-bus {
+    background-color: white;
+    border: 2px solid #0d47a1; /* Azul oscuro */
+    border-radius: 8px; /* Cuadrado redondeado */
+    color: #0d47a1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
+/* 3. TRANSBORDO (Intercambio) */
+.icono-mapa-transbordo {
+    background: linear-gradient(135deg, #ff9800, #f57c00); /* Naranja vibrante */
+    color: white;
     border: 2px solid white;
     border-radius: 50%;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
-    color: white;
-    font-weight: bold;
-    font-size: 14px;
-    text-align: center;
-    line-height: 26px; /* (30px - 2*2px border) */
-}
-.bus-vivo-icono span {
-    display: block;
-    transform: translateY(-1px); /* Ajuste visual fino */
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 4px 8px rgba(245, 124, 0, 0.4);
 }
 
-/* --- Estilos para Info en Vivo y ETA --- */
-#info-en-vivo-container {
-    padding: 0 15px;
-}
-
-.eta-info {
-    display: none; /* Oculto por defecto */
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
-}
-
-.eta-info strong {
-    color: #007bff;
-    font-size: 1.1em;
-}
-
-.eta-info p {
-    margin: 5px 0 0;
-    color: #333;
-    font-size: 0.95em;
+/* 4. DESTINO FINAL (Meta) */
+.icono-mapa-destino {
+    /* Usamos el SVG del icono directamente o un fondo */
+    color: #d32f2f; /* Rojo */
+    font-size: 32px;
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,0.3));
+    margin-top: -15px; /* Ajuste para que la punta toque el lugar */
 }

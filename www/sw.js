@@ -1,7 +1,7 @@
 // www/sw.js
 
-const CACHE_VERSION = 'v4.1'; // <-- ¡Subí la versión!
-const CACHE_NAME = `rutas-koox-cache-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v5.2'; // <-- ¡Subí la versión!
+const CACHE_NAME = `rutas-1oox-cache-${CACHE_VERSION}`;
 
 const APP_SHELL_URLS = [
     './',

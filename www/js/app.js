@@ -11,12 +11,13 @@ import {
 } from './mapService.js';
 import { getUbicacionUsuario, iniciarWatchLocation, detenerWatchLocation } from './locationService.js';
 import { encontrarRutaCompleta, crearMapaRutas, linkParaderosARutas } from './routeFinder.js';
-// js/app.js
+import { initSettings, userSettings } from './settings.js';
 import { startNavigation, stopNavigation, updatePosition, activarModoTransbordo } from './navigationService.js';
 import { KeepAwake } from '@capacitor-community/keep-awake'; // CORRECTO
 import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Dialog } from '@capacitor/dialog';
+import { buscarLugarEnNominatim, categoriasRapidas, sitiosTuristicos } from './searchService.js';
 async function mantenerPantallaEncendida() {
     try {
         await KeepAwake.keepAwake();
@@ -131,8 +132,8 @@ let ubicacionInicialFijada = false; // ⬅️ Para arreglar Bug 1 (mapa que se m
 
 // --- 3. REFERENCIAS AL DOM (Solo declaradas) ---
 let selectDestino, inputInicio, instruccionesEl, btnIniciarRuta, btnLimpiar;
-let panelControl, panelNavegacion, instruccionActualEl, btnAnterior, btnSiguiente, btnFinalizar, panelToggle;
-let btnModoViaje, btnModoExplorar, panelViaje, panelExplorar;
+let panelControl, panelNavegacion, instruccionActualEl, btnAnterior, btnSiguiente, btnFinalizar;
+let panelViaje, panelExplorar;
 let selectRuta, instruccionesExplorarEl, btnLimpiarExplorar;
 let btnInfo, infoModal, btnCloseModal;
 
@@ -195,10 +196,29 @@ function actualizarDisplayAlertas() {
 
 // ⬆️⬆️ FIN DE FUNCIONES GLOBALES DE ALERTA Y RUTAS ⬆️⬆️
 
-
 // --- 4. ARRANQUE DE LA APP ---
 document.addEventListener('DOMContentLoaded', async () => {
-    
+    // ... tus otras variables ...
+    // ... otros listeners ...
+
+    // Listener para el botón de prueba
+    const btnTest = document.getElementById('btnTestSimulador');
+    if (btnTest) {
+        btnTest.addEventListener('click', () => {
+            // Llamamos a la función que pegaste al final del archivo
+            if (typeof window.simularBus === 'function') {
+                window.simularBus();
+            } else {
+                alert("⚠️ Error: La función simularBus no se ha cargado. Revisa el final de tu archivo app.js");
+            }
+        });
+    }
+    const btnBuscarLugar = document.getElementById('btnBuscarLugar');
+    const infoLugarDetectado = document.getElementById('info-lugar-buscado');
+    const contenedorChips = document.getElementById('contenedor-chips');
+    const btnModoTurista = document.getElementById('btnModoTurista');
+const btnMinimizarPanel = document.getElementById('btnMinimizarPanel');
+const btnMinimizarNav = document.getElementById('btnMinimizarNav');
     // Asignamos todas las referencias al DOM aquí
     selectDestino = document.getElementById('selectDestino');
     inputInicio = document.getElementById('inputInicio');
@@ -211,11 +231,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnAnterior = document.getElementById('btnAnterior');
     btnSiguiente = document.getElementById('btnSiguiente');
     btnFinalizar = document.getElementById('btnFinalizar');
-    panelToggle = document.getElementById('panel-toggle');
     distanciaRestanteEl = document.getElementById('distancia-restante');
     tiempoEsperaEl = document.getElementById('tiempo-espera');
-    btnModoViaje = document.getElementById('btnModoViaje');
-    btnModoExplorar = document.getElementById('btnModoExplorar');
     panelViaje = document.getElementById('panel-viaje');
     panelExplorar = document.getElementById('panel-explorar');
     selectRuta = document.getElementById('selectRuta');
@@ -226,11 +243,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCloseModal = document.getElementById('btnCloseModal');
     tiempoViajeEl = document.getElementById('tiempo-viaje');
     btnParaderosCercanos = document.getElementById('btnParaderosCercanos');
-    btnFabReporte = document.getElementById('btn-fab-reporte');
     alertIndicatorEl = document.getElementById('alert-indicator'); // ⬅️ ASIGNA EL BANNER
     btnModoReporte = document.getElementById('btnModoReporte');
     panelReporte = document.getElementById('panel-reporte');
     solicitarPermisosIniciales();
+    // ⬇️⬇️ NUEVO: Inicializar Ajustes y Barra de Navegación ⬇️⬇️
+    initSettings(); 
+
+    // --- LÓGICA DE BARRA DE NAVEGACIÓN INFERIOR ---
+    const navItems = document.querySelectorAll('.nav-item');
+    const pantallaSaldo = document.getElementById('pantalla-saldo');
+    const pantallaRecargas = document.getElementById('pantalla-recargas');
+
+
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            const btn = e.currentTarget;
+            const target = btn.dataset.target;
+            const yaEstabaActivo = btn.classList.contains('activo');
+    
+            // Si ya estaba activo y es un panel lateral (Viaje/Explorar/Reporte), lo cerramos (toggle)
+            if (yaEstabaActivo && (target === 'viaje' || target === 'explorar' || target === 'reporte')) {
+                minimizarPaneles();
+                return; // Salimos, no abrimos nada
+            }
+    
+            // Si no, comportamiento normal de cambiar modo
+            navItems.forEach(nav => nav.classList.remove('activo'));
+            btn.classList.add('activo');
+            cambiarModo(target);
+        });
+    });
+    // ⬆️⬆️ FIN NUEVO BLOQUE ⬆️⬆️
     mantenerPantallaEncendida();
 
     // ⬇️⬇️ INICIO DEL MÓDULO OFFLINE ⬇️⬇️
@@ -282,16 +326,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Conectamos TODOS los eventos principales aquí
     btnParaderosCercanos.addEventListener('click', handleParaderosCercanos);
-    panelToggle.addEventListener('click', togglePanel);
     btnLimpiar.addEventListener('click', limpiarMapa);
     btnIniciarRuta.addEventListener('click', iniciarRutaProgresiva);
     btnSiguiente.addEventListener('click', siguientePaso);
     btnAnterior.addEventListener('click', pasoAnterior);
     btnFinalizar.addEventListener('click', finalizarRuta);
-    btnModoViaje.addEventListener('click', () => cambiarModo('viaje'));
-    btnModoExplorar.addEventListener('click', () => cambiarModo('explorar'));
     btnLimpiarExplorar.addEventListener('click', limpiarMapa);
-    btnModoReporte.addEventListener('click', () => cambiarModo('reporte'));
     // ⬇️⬇️ INICIO MÓDULO DE ENVÍO DE REPORTES ⬇️⬇️
     document.querySelectorAll('.btn-reporte').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -300,27 +340,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     // ⬆️⬆️ FIN MÓDULO ⬆️⬆️
-    
-// El listener de la "Burbuja Flotante"
-btnFabReporte.addEventListener('click', () => {
-
-    // 'watchId' (line 55) es nuestra variable global 
-    // que nos dice si la navegación está activa.
-    const enNavegacion = (watchId !== null); 
-
-    if (enNavegacion) {
-        // Si estamos navegando, ocultamos la navegación 
-        // y abrimos el panel de control
-        panelNavegacion.classList.add('oculto');
-        panelControl.classList.remove('oculto');
-    } else {
-        // Comportamiento normal (no en navegación)
-        abrirPanelControl();
-    }
-
-    // En ambos casos, cambiamos al modo reporte
-    cambiarModo('reporte');
-});
 
     btnInfo.addEventListener('click', () => infoModal.classList.remove('oculto'));
     btnCloseModal.addEventListener('click', () => infoModal.classList.add('oculto'));
@@ -338,7 +357,62 @@ btnFabReporte.addEventListener('click', () => {
         controlSelectInicio.style.display = 'none';
     }
     
-    initMap(); 
+    initMap();
+
+    // --- A. INICIALIZAR CHIPS DE CATEGORÍAS ---
+    if (contenedorChips) {
+        categoriasRapidas.forEach(cat => {
+            const chip = document.createElement('button');
+            chip.className = 'chip';
+            chip.innerHTML = `<i class="${cat.icono}"></i> ${cat.label}`;
+            chip.addEventListener('click', () => {
+                // Al hacer click, buscamos esa categoría en internet
+                ejecutarBusquedaInternet(`${cat.query} en Campeche`);
+            });
+            contenedorChips.appendChild(chip);
+        });
+    }
+
+    // --- B. BOTÓN DE LUPA (Búsqueda manual) ---
+    if (btnBuscarLugar) {
+        btnBuscarLugar.addEventListener('click', () => {
+            const busqueda = prompt("🔍 ¿A dónde quieres ir?\n(Ej: Walmart, IMSS, Secundaria 7)");
+            if (busqueda && busqueda.trim().length > 2) {
+                ejecutarBusquedaInternet(busqueda);
+            }
+        });
+    }
+
+    // --- C. BOTÓN MODO TURISTA ---
+    if (btnModoTurista) {
+        btnModoTurista.addEventListener('click', () => {
+            mostrarOpcionesTurismo();
+        });
+    }
+
+    function minimizarPaneles() {
+        panelControl.classList.add('oculto');
+        panelNavegacion.classList.add('oculto');
+    
+        // Opcional: Quitar el estado "activo" de la barra de abajo para indicar que estamos viendo el mapa puro
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('activo'));
+    }
+    
+    // Listener para el botón de la flecha en Panel Control
+    if(btnMinimizarPanel) {
+        btnMinimizarPanel.addEventListener('click', minimizarPaneles);
+    }
+    
+    // Listener para el botón de la flecha en Panel Navegación
+    if(btnMinimizarNav) {
+        btnMinimizarNav.addEventListener('click', minimizarPaneles);
+    }
+    
+    // Listener para cerrar al tocar el mapa (UX Clásica)
+    map.on('click', () => {
+        minimizarPaneles();
+    });
+    
 
     // js/app.js (en DOMContentLoaded, después de initMap())
 
@@ -742,45 +816,77 @@ function initChoicesSelectInicioManual() {
 // js/app.js
 
 function cambiarModo(modo) {
-    // 1. Ocultar todos los paneles
+    console.log("Cambiando a modo:", modo);
+    
+    // 1. Definir referencias a pantallas nuevas (por seguridad las buscamos aquí)
+    const pantallaSaldo = document.getElementById('pantalla-saldo');
+    const pantallaRecargas = document.getElementById('pantalla-recargas');
+
+    // 2. Ocultar TODAS las pantallas especiales y paneles primero
+    if(pantallaSaldo) pantallaSaldo.classList.add('oculto');
+    if(pantallaRecargas) pantallaRecargas.classList.add('oculto');
+    
+    // Ocultamos paneles de mapa
     panelViaje.classList.add('oculto');
     panelExplorar.classList.add('oculto');
     panelReporte.classList.add('oculto');
-
-    // 2. Desactivar todos los botones de pestaña
-    btnModoViaje.classList.remove('activo');
-    btnModoExplorar.classList.remove('activo');
-    btnModoReporte.classList.remove('activo');
-    // Verificamos si la navegación está activa (usando 'watchId')
-    const enNavegacion = (watchId !== null);
-
-    // 3. Activar el modo seleccionado
-    if (modo === 'viaje') {
-        if (enNavegacion) {
-            panelControl.classList.add('oculto');
-            panelNavegacion.classList.remove('oculto'); // ⬅️ Vuelve al panel de navegación
+    
+    // 3. Lógica específica por modo
+    if (modo === 'saldo') {
+        panelControl.classList.add('oculto'); 
+        panelNavegacion.classList.add('oculto'); 
+        if(pantallaSaldo) pantallaSaldo.classList.remove('oculto');
+    } 
+    else if (modo === 'recargas') {
+        panelControl.classList.add('oculto');
+        panelNavegacion.classList.add('oculto');
+        if(pantallaRecargas) pantallaRecargas.classList.remove('oculto');
+    } 
+    else {
+        // --- Modos de Mapa (Viaje, Explorar, Reporte) ---
+        
+        // Verificamos si la navegación está activa (usando variable global watchId)
+        const enNavegacion = (watchId !== null);
+        
+        if (enNavegacion && modo === 'viaje') {
+             // Si navega y pulsa "Viaje", ve el panel de navegación
+             panelControl.classList.add('oculto');
+             panelNavegacion.classList.remove('oculto');
         } else {
+             // Si no, ve el panel flotante normal
+             panelControl.classList.remove('oculto');
+             if(panelNavegacion) panelNavegacion.classList.add('oculto');
+        }
+
+        if (modo === 'viaje') {
             panelViaje.classList.remove('oculto');
-            btnModoViaje.classList.add('activo');
-            limpiarMapa();
-        }
-    } else if (modo === 'explorar') {
-        if (enNavegacion) {
-            panelControl.classList.add('oculto');
-            panelNavegacion.classList.remove('oculto'); // ⬅️ Vuelve al panel de navegación
-        } else {
+            // Nota: Ya no llamamos a limpiarMapa() automáticamente al cambiar tab,
+            // para no borrar la ruta si el usuario solo cambiaba de vista momentáneamente.
+        } else if (modo === 'explorar') {
             panelExplorar.classList.remove('oculto');
-            btnModoExplorar.classList.add('activo');
-            limpiarMapa();
+        } else if (modo === 'reporte') {
+            panelReporte.classList.remove('oculto');
         }
-    } else if (modo === 'reporte') {
-        panelReporte.classList.remove('oculto');
-        btnModoReporte.classList.add('activo');
-        // No limpiamos el mapa
-    }   
+    }
 
-    // ⬇️ LÍNEA CLAVE AÑADIDA ⬇️
-    actualizarDisplayAlertas(); // ⬅️ Re-evalúa la alerta según el nuevo modo
+    // 4. Actualizar visualmente la barra inferior (Iconos rellenos vs línea)
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const icon = item.querySelector('i');
+        if (item.dataset.target === modo) {
+            item.classList.add('activo');
+            if(icon && icon.className.includes('-line')) {
+                icon.className = icon.className.replace('-line', '-fill');
+            }
+        } else {
+            item.classList.remove('activo');
+            if(icon && icon.className.includes('-fill')) {
+                icon.className = icon.className.replace('-fill', '-line');
+            }
+        }
+    });
+
+    // 5. Re-evaluar alertas
+    actualizarDisplayAlertas();
 }
 
 function initChoicesSelectRuta() {
@@ -917,35 +1023,7 @@ function limpiarMapa() {
     // ⬆️ Fin lógica modificada ⬆️
 }
 
-// ... (el resto de tu app.js) ...
-
-
-// (CORREGIDO)
-function togglePanel() {
-    // ❗️ Corregido: Usar la variable global 'watchId'
-    const enNavegacionReal = (watchId !== null); 
-
-    if (enNavegacionReal) {
-        // Si estamos en navegación, el toggle SIEMPRE afecta
-        // al panel de navegación
-        panelNavegacion.classList.toggle('oculto');
-
-        // Si al hacerlo, el panel de control estaba visible 
-        // (por un reporte), lo ocultamos.
-        if (!panelControl.classList.contains('oculto')) {
-            panelControl.classList.add('oculto');
-        }
-
-    } else {
-        // Si NO estamos en navegación, el toggle
-        // afecta al panel de control (comportamiento original)
-        panelControl.classList.toggle('oculto');
-    }
-}
-
-
 // --- 6. LÓGICA DE NAVEGACIÓN (UI) ---
-// js/app.js
 
 function mostrarPlanes(planes) {
     instruccionesEl.innerHTML = ''; // Limpia el panel
@@ -1038,8 +1116,9 @@ function mostrarPlanes(planes) {
         
         const btnSeleccionar = document.createElement('button');
         btnSeleccionar.className = 'btn-seleccionar';
-        btnSeleccionar.textContent = 'Seleccionar esta ruta';
-        
+        // Usamos innerHTML para incluir el icono de Remix Icons
+        btnSeleccionar.innerHTML = 'Seleccionar <i class="ri-arrow-right-line"></i>';
+    
         btnSeleccionar.addEventListener('click', () => {
             seleccionarPlan(index);
         });
@@ -1085,17 +1164,37 @@ const seleccionarPlan = (indice) => {
 
             } else if (paso.tipo === 'bus') {
                 // 1. Calcular distancia del paso
-                const startOnLine = turf.nearestPointOnLine(paso.ruta, paso.paraderoInicio);
-                const endOnLine = turf.nearestPointOnLine(paso.ruta, paso.paraderoFin);
-                const segmentoDeRuta = turf.lineSlice(startOnLine, endOnLine, paso.ruta);
+                
+                // ⬇️⬇️ CORRECCIÓN: "Aplanar" rutas MultiLineString ⬇️⬇️
+                let rutaGeometria = paso.ruta; // Por defecto usamos la original
+
+                // Si la ruta es compleja (MultiLineString), la convertimos a simple
+                if (paso.ruta.geometry.type === 'MultiLineString') {
+                    try {
+                        // Unimos todos los fragmentos de la ruta en una sola línea continua
+                        // (El método .flat() une los arrays de coordenadas)
+                        const coordenadasUnidas = paso.ruta.geometry.coordinates.flat();
+                        rutaGeometria = turf.lineString(coordenadasUnidas);
+                    } catch (err) {
+                        console.warn("No se pudo aplanar la ruta MultiLineString, usando cálculo simple.");
+                    }
+                }
+                // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
+
+                // Usamos 'rutaGeometria' (la versión corregida) para los cálculos
+                const startOnLine = turf.nearestPointOnLine(rutaGeometria, paso.paraderoInicio);
+                const endOnLine = turf.nearestPointOnLine(rutaGeometria, paso.paraderoFin);
+                
+                // Ahora lineSlice no fallará porque le pasamos una LineString segura
+                const segmentoDeRuta = turf.lineSlice(startOnLine, endOnLine, rutaGeometria);
                 
                 distanciaPaso = turf.length(segmentoDeRuta, { units: 'meters' });
-                distanciaTotalRuta += distanciaPaso; // Sumar al total
-                puntoAnterior = paso.paraderoFin; // Actualizar el punto de anclaje
+                distanciaTotalRuta += distanciaPaso; 
+                puntoAnterior = paso.paraderoFin; 
 
-                // 2. Enriquecer el paso (Módulo de Distancia)
+                // 2. Enriquecer el paso
                 paso.distanciaMetros = distanciaPaso;
-                // 3. ¡Actualizar el texto que verá el usuario!
+                // 3. Actualizar texto
                 paso.texto = `Toma ${paso.ruta.properties.id} y baja en ${paso.paraderoFin.properties.nombre} (${(distanciaPaso / 1000).toFixed(1)} km)`;
             
             } else if (paso.tipo === 'transbordo') {
@@ -1367,7 +1466,13 @@ function checkProximidad(navState) {
         if (distanciaMetros < 300 && !alertaMostrada) {
             console.log("¡Alerta! Bajas pronto.");
             alertaMostrada = true;
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            
+            // ⬇️ MODIFICADO: Usa userSettings.vibration
+            if (userSettings.vibration && navigator.vibrate) {
+                navigator.vibrate([200, 100, 200]);
+            }            
+            // ⬆️ FIN MODIFICADO
+            
             instruccionActualEl.textContent = `¡BAJA PRONTO! (${puntoDeInteres.properties.nombre})`;
         }
 
@@ -1394,7 +1499,11 @@ function checkProximidad(navState) {
                 if (!esPasoFinal) {
                     console.log("Activando contador de transbordo...");
                     activarModoTransbordo(); 
-                    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+                    // ⬇️ MODIFICADO
+                    if (userSettings.vibration && navigator.vibrate) {
+                        navigator.vibrate([200, 100, 200, 100, 200]);
+                    }
+                    // ⬆️ FIN MODIFICADO
                 }
                 
                 // Avanzamos al siguiente paso (o finalizamos)
@@ -1476,7 +1585,7 @@ function actualizarUI_Navegacion(navState) {
 
     // ⬇️ SECCIÓN DE LÓGICA DE CONTADOR COMPLETAMENTE REEMPLAZADA ⬇️
     // 2. Actualizar estado (Movimiento / Transbordo / Esperando)
-    const LIMITE_TIEMPO_TRANSBORDO = 7200; // 2 horas en segundos
+    const LIMITE_TIEMPO_TRANSBORDO = 5400; // 2 horas en segundos
 
     // Resetea la clase CSS
     tiempoEsperaEl.className = ''; 
@@ -1737,7 +1846,7 @@ function handleFavoritoDelete(event) {
 
 /**
  * (MÓDULO ACTUALIZADO) Busca y muestra los 5 paraderos más cercanos
- * a la ubicación del usuario, usando los iconos y popups inteligentes.
+ * a la ubicación del usuario, usando los NUEVOS ICONOS.
  */
 function handleParaderosCercanos() {
     if (!puntoInicio) {
@@ -1749,7 +1858,7 @@ function handleParaderosCercanos() {
 
     // 1. Limpiar el mapa y controles
     limpiarCapasDeRuta(); 
-    marcadores.clearLayers(); // ⬅️ ¡AÑADE ESTA LÍNEA!
+    marcadores.clearLayers(); 
     if (choicesRuta) {
         choicesRuta.clearInput();
         choicesRuta.removeActiveItems();
@@ -1779,34 +1888,25 @@ function handleParaderosCercanos() {
         // Añadir a la lista HTML
         htmlInstrucciones += `<li style="margin-bottom: 5px;">${nombre} (aprox. ${dist} m)</li>`;
         
-        // ⬇️⬇️ INICIO DE LA LÓGICA ACTUALIZADA ⬇️⬇️
-        const paraderoId = item.paradero.properties.originalIndex;
+        // --- AQUÍ ESTABA EL ERROR, AHORA CORREGIDO ---
         
-        // 4A. Usar el nuevo ícono llamativo de nuestro CSS
+        // Usamos el MISMO estilo visual que el resto de la app
         const icono = L.divIcon({
-            className: 'paradero-icono-koox', // <-- ¡Nuestro nuevo estilo CSS!
-            iconSize: [16, 16]
+            className: 'icono-mapa-bus', // <--- ¡Esta es la clase del cuadro blanco con borde azul!
+            html: '<i class="ri-bus-fill"></i>',
+            iconSize: [24, 24], // Un poquitín más chico para no saturar
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12]
         });
 
-        // 4B. Crear el contenido del Popup "Inteligente"
-        const rutasEnParadero = (item.paradero.properties.rutas || []).join(', ');
-        
-        const popupHTML = `
-            <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 5px;">${nombre}</div>
-            <p style="font-size: 0.9em; margin: 4px 0;">Aprox. ${dist} m</p>
-            <strong style="font-size: 0.9em;">Rutas:</strong>
-            <p style="font-size: 0.9em; margin: 4px 0;">${rutasEnParadero || 'N/A'}</p>
-            <button class="btn-popup btn-ver-rutas-paradero" data-paradero-id="${paraderoId}">
-                Ver detalles
-            </button>
-        `;
+        // Crear el contenido del Popup
+        const popupHTML = crearPopupInteligente(item.paradero);
 
-        // 4C. Crear el marcador
+        // Crear el marcador
         const marker = L.marker(latLng, { icon: icono })
                 .bindPopup(popupHTML);
-        // ⬆️⬆️ FIN DE LA LÓGICA ACTUALIZADA ⬆️⬆️
         
-        marker.addTo(marcadores); // Añadimos a la capa global de marcadores
+        marker.addTo(marcadores); 
         marcadoresDeParaderos.push(marker);
     });
 
@@ -2163,3 +2263,286 @@ function inicializarFirebaseGestion() {
         console.error("Error inicializando Firebase Gestión", err);
     }
 }
+
+// ===============================================
+// ⬇️⬇️ NUEVAS FUNCIONES DE BÚSQUEDA Y CHIPS (V2: LISTAS) ⬇️⬇️
+// ===============================================
+
+// Variable temporal para guardar los resultados de la búsqueda actual
+let resultadosBusquedaActual = [];
+
+/**
+ * Orquestador: Busca en internet -> Si hay 1, selecciona. Si hay varios, muestra lista.
+ */
+async function ejecutarBusquedaInternet(query) {
+    const btnBuscar = document.getElementById('btnBuscarLugar');
+    
+    // Feedback visual
+    if(btnBuscar) {
+        var iconoOriginal = btnBuscar.innerHTML;
+        btnBuscar.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
+        btnBuscar.disabled = true;
+    }
+
+    try {
+        // 1. Llamada al Servicio Modular (Pedimos hasta 15 resultados)
+        const lugares = await buscarLugarEnNominatim(query, 100);
+
+        if (lugares && lugares.length > 0) {
+            
+            if (lugares.length === 1) {
+                // CASO A: Solo hay un resultado (ej. "Catedral"), lo seleccionamos directo
+                procesarSeleccionLugar(lugares[0]);
+            } else {
+                // CASO B: Hay muchos resultados (ej. "Escuelas"), mostramos lista
+                mostrarListaDeResultados(lugares);
+            }
+
+        } else {
+            alert("No encontramos lugares con ese nombre en Campeche.");
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert("Error de conexión al buscar.");
+    } finally {
+        if(btnBuscar) {
+            btnBuscar.innerHTML = iconoOriginal;
+            btnBuscar.disabled = false;
+        }
+    }
+}
+
+/**
+ * Pinta una lista de tarjetas en el panel de instrucciones para que el usuario elija.
+ */
+function mostrarListaDeResultados(lugares) {
+    const panelInst = document.getElementById('panel-instrucciones');
+    resultadosBusquedaActual = lugares; // Guardamos en memoria
+
+    let html = `
+        <div class="info-seccion">
+            <p style="margin-bottom:10px;">Encontramos <strong>${lugares.length}</strong> opciones:</p>
+            <div class="lista-resultados" style="max-height: 60vh; overflow-y: auto; padding-bottom: 20px;">
+    `;
+
+    lugares.forEach((lugar, index) => {
+        // Usamos el estilo .opcion-ruta para que parezcan tarjetas bonitas
+        html += `
+            <div class="opcion-ruta" onclick="window.app.seleccionarResultado(${index})" style="cursor:pointer; padding: 15px; margin-bottom: 10px;">
+                <h4 style="margin:0 0 5px 0; font-size: 1em; color: var(--primary-color);">
+                    <i class="ri-map-pin-line"></i> ${lugar.nombre}
+                </h4>
+                <small style="color: var(--text-color); opacity: 0.8; line-height: 1.2; display:block;">
+                    ${lugar.direccion}
+                </small>
+            </div>
+        `;
+    });
+
+    html += `</div></div>`;
+    
+    // Inyectamos el HTML
+    panelInst.innerHTML = html;
+    
+    // Aseguramos que el panel esté visible
+    abrirPanelControl();
+}
+
+// ===============================================
+// ⬇️⬇️ CORRECCIÓN AQUÍ ⬇️⬇️
+// ===============================================
+
+// 1. PRIMERO: Aseguramos que 'window.app' exista
+window.app = window.app || {}; 
+
+// 2. AHORA SÍ: Asignamos la función
+window.app.seleccionarResultado = (index) => {
+    const lugar = resultadosBusquedaActual[index];
+    if (lugar) {
+        procesarSeleccionLugar(lugar);
+    }
+};
+
+/**
+ * Lógica final: Toma un lugar (lat/lng), busca el paradero y actualiza el mapa.
+ */
+function procesarSeleccionLugar(lugar) {
+    const infoLabel = document.getElementById('info-lugar-buscado');
+    console.log("Procesando lugar:", lugar);
+
+    // 1. Buscar paradero más cercano (Turf.js)
+    const puntoLugar = turf.point([lugar.lng, lugar.lat]);
+    const paraderoCercano = encontrarParaderoMasCercano(puntoLugar);
+
+    if (paraderoCercano) {
+        // 2. Actualizar variables globales
+        paraderoFin = paraderoCercano; 
+        
+        // 3. Actualizar el selector visual (Choices.js)
+        if(choicesDestino) {
+            choicesDestino.setChoiceByValue(paraderoCercano.properties.originalIndex.toString());
+        }
+
+        // 4. Feedback en el panel
+        const panelInst = document.getElementById('panel-instrucciones');
+        panelInst.innerHTML = `
+            <div class="alerta-verde" style="text-align:left; margin-top:0;">
+                <strong>✅ Destino Fijado:</strong><br>
+                ${lugar.nombre}
+                <hr style="margin:5px 0; border:0; border-top:1px solid rgba(0,0,0,0.1);">
+                <small>Baja en paradero: <strong>${paraderoCercano.properties.nombre}</strong></small>
+            </div>
+            <p style="margin-top:10px; text-align:center;">Ahora selecciona tu punto de inicio o usa el GPS.</p>
+        `;
+
+        // 5. Dibujar pin temporal en el mapa
+        const tempMarker = L.marker([lugar.lat, lugar.lng], {
+            icon: L.divIcon({
+                className: 'icono-destino-especial',
+                html: '<i class="ri-map-pin-star-fill" style="color:#E91E63; font-size:30px; text-shadow: 0 2px 5px rgba(0,0,0,0.3);"></i>',
+                iconSize: [30, 30], iconAnchor: [15, 30]
+            })
+        }).addTo(map).bindPopup(`<b>${lugar.nombre}</b>`).openPopup();
+        
+        // 6. Centrar mapa y limpiar pin luego
+        map.setView([lugar.lat, lugar.lng], 16);
+        setTimeout(() => map.removeLayer(tempMarker), 8000);
+
+    } else {
+        alert("El lugar existe, pero está muy lejos de cualquier ruta de transporte.");
+    }
+}
+/**
+ * Muestra una lista de opciones turísticas (usando Choices.js o un menú simple)
+ */
+function mostrarOpcionesTurismo() {
+    // Usamos un Prompt mejorado o inyectamos HTML temporalmente
+    // Para simplificar, usaremos Choice.js del destino para mostrar las opciones
+    
+    if(!choicesDestino) return;
+
+    // Crear un grupo de opciones temporal
+    const opcionesTurismo = sitiosTuristicos.map(sitio => ({
+        value: 'turismo_' + sitio.query, // Prefijo para identificar
+        label: `📸 ${sitio.nombre}`,
+        customProperties: { calle: 'Sitio Turístico', colonia: 'Recomendado' }
+    }));
+
+    // Esto es un truco: Reemplazamos las opciones del select por un momento
+    // O mejor: Ejecutamos la búsqueda directamente si el usuario elige de una lista simple.
+    
+    // Opción Simple y Efectiva: Crear un menú modal rápido
+    let menuHTML = `<div class="info-seccion"><h5>Sitios de Interés</h5><div class="chips-scroll" style="flex-wrap:wrap;">`;
+    
+    sitiosTuristicos.forEach(sitio => {
+        menuHTML += `<button class="chip" onclick="window.app.buscarTurismo('${sitio.query}')">
+            <i class="${sitio.icono}"></i> ${sitio.nombre}
+        </button>`;
+    });
+    menuHTML += `</div></div>`;
+    
+    // Inyectar en el panel de instrucciones
+    const panelInst = document.getElementById('panel-instrucciones');
+    panelInst.innerHTML = menuHTML;
+}
+
+// Exponer función helper para el HTML inyectado arriba
+window.app = window.app || {};
+window.app.buscarTurismo = (query) => {
+    ejecutarBusquedaInternet(query);
+};
+
+
+
+// ==========================================
+// 🧪 MODO DE PRUEBAS: SIMULADOR (Integrado en app.js)
+// ==========================================
+
+// Asignamos la función a 'window' para poder llamarla desde la consola
+window.simularBus = function() {
+    
+    // 1. Verificar si hay ruta activa (Ahora sí puede leer la variable interna)
+    if (!rutaCompletaPlan || rutaCompletaPlan.length === 0) {
+        alert("⚠️ Primero inicia una ruta de navegación (Pon inicio y destino).");
+        return;
+    }
+
+    // 2. Buscar si la ruta tiene un tramo de BUS
+    const pasoBus = rutaCompletaPlan.find(p => p.tipo === 'bus');
+    if (!pasoBus) {
+        alert("🚶 Tu ruta es solo de caminata. Elige un destino más lejos para usar bus.");
+        return;
+    }
+
+    const nombreRuta = pasoBus.ruta.properties.id;
+    console.log(`🚌 Iniciando simulación para: ${nombreRuta}`);
+
+    // 3. Configurar coordenadas de inicio (Un poco antes del paradero de subida)
+    const coords = pasoBus.paraderoInicio.geometry.coordinates;
+    // Truco: Retrocedemos un poco lat/lng para que venga "llegando"
+    let lat = coords[1] - 0.006; 
+    let lng = coords[0] - 0.006;
+
+    // 4. Crear icono visual del bus
+    const icono = L.divIcon({
+        className: 'bus-simulado',
+        html: `
+            <div style="
+                background: #d32f2f; 
+                border: 2px solid white; 
+                color: white; 
+                width: 44px; height: 44px; 
+                border-radius: 50%; 
+                display: flex; align-items: center; justify-content: center; 
+                font-weight: bold; font-size: 10px;
+                box-shadow: 0 4px 15px rgba(211, 47, 47, 0.5);
+                animation: palpitar 1s infinite;
+            ">
+                TEST
+            </div>
+            <style>@keyframes palpitar { 0% {transform:scale(1);} 50% {transform:scale(1.1);} 100% {transform:scale(1);} }</style>
+        `,
+        iconSize: [44, 44]
+    });
+
+    // Añadir al mapa (Variable 'map' accesible desde aquí)
+    const marker = L.marker([lat, lng], {icon: icono}).addTo(map);
+
+    // 5. Animación de movimiento
+    let dist = 3000; // metros ficticios
+    alert(`👀 ¡Mira el mapa! Un bus de prueba (${nombreRuta}) se acerca a tu paradero.`);
+
+    const intervalo = setInterval(() => {
+        // Mover en diagonal acercándose
+        lat += 0.00015; 
+        lng += 0.00015; 
+        dist -= 50;
+        
+        marker.setLatLng([lat, lng]);
+
+        // 6. Intentar actualizar panel ETA (Panel de información)
+        const etaDiv = document.getElementById('eta-info');
+        if (etaDiv) {
+            etaDiv.style.display = 'block';
+            etaDiv.innerHTML = `
+                <div style="background:#e3f2fd; padding:12px; margin-top:10px; border-radius:12px; border:1px solid #90caf9; display:flex; align-items:center; gap:10px;">
+                    <div style="font-size:20px;">🚍</div>
+                    <div>
+                        <strong style="color:#1565c0;">BUS DE PRUEBA</strong>
+                        <div style="font-size:1.1em; font-weight:bold;">${Math.max(1, Math.ceil(dist/500))} min</div>
+                        <small style="color:#555;">A ${dist} metros</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Finalizar
+        if (dist <= 100) {
+            clearInterval(intervalo);
+            alert("✅ ¡El bus simulado llegó al paradero!");
+            map.removeLayer(marker);
+            if(etaDiv) etaDiv.style.display = 'none';
+        }
+    }, 800); // Actualiza cada 0.8 segundos
+};

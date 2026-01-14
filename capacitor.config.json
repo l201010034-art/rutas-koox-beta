@@ -1,5 +1,14 @@
 {
   "appId": "rkooxcampeche.aolastudios.com",
   "appName": "Rutas Ko'ox - Planifica tu ruta!",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#ffffff",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
 }
