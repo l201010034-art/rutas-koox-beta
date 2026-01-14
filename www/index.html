@@ -2,9 +2,18 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Rutas Koox Campeche</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
+    <title>Rutas Koox | Transporte Público en Campeche</title>
+    <meta name="description" content="Mapa interactivo de rutas de transporte público en Campeche. Encuentra paraderos, camiones y horarios en tiempo real. ¡Llega fácil a tu destino!">
+    <meta name="keywords" content="rutas campeche, transporte publico campeche, camiones, paraderos, rutas koox, mapa de camiones, lerma, transporte">
+    <meta name="author" content="Rutas Koox Team">
+
+    <meta property="og:title" content="Rutas Koox - Tu conexión en Campeche">
+    <meta property="og:description" content="Descubre la forma más fácil de moverte en camión por la ciudad. Mapa gratuito y actualizado.">
+    <meta property="og:image" content="https://rutaskoox.com/images/icon-512.png"> <meta property="og:url" content="https://rutaskoox.com/">
+    <meta property="og:type" content="website">
+        
     <link rel="icon" type="image/png" href="images/favicon.png">
     <link rel="manifest" href="manifest.json">
     
@@ -25,6 +34,58 @@
             transition: opacity 0.5s ease-out;
         }
         body { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* --- PEGA ESTO DENTRO DE TU ETIQUETA <style> --- */
+        
+/* --- ESTILO DE LA PASTILLA FLOTANTE --- */
+.marca-flotante-top {
+    position: fixed; /* Fixed para que flote sobre todo */
+    
+    /* 🧠 CÁLCULO INTELIGENTE: 
+       15px base + lo que mida la barra de estado del celular (safe-area) */
+    top: calc(env(safe-area-inset-top) + 15px);
+    
+    left: 50%;
+    transform: translateX(-50%); /* Centrado perfecto */
+    
+    /* Diseño Cristal (Glassmorphism) */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    
+    padding: 8px 20px;
+    border-radius: 50px; /* Bordes totalmente redondos */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15); /* Sombra suave */
+    
+    z-index: 2000; /* Por encima del mapa y paneles */
+    
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #1a1a1a; /* Texto oscuro */
+    font-weight: 700;
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+}
+
+.marca-flotante-top:active {
+    transform: translateX(-50%) scale(0.95); /* Efecto de click */
+}
+
+.logo-flotante {
+    width: 22px;
+    height: 22px;
+    margin-right: 10px;
+    border-radius: 5px;
+}
+
+/* --- SOPORTE MODO OSCURO (Opcional, si usas la clase .dark-mode en body) --- */
+body.dark-mode .marca-flotante-top {
+    background: rgba(30, 30, 30, 0.95);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+}
     </style>
 </head>
 <body>
@@ -41,16 +102,23 @@
     <div id="alert-indicator" class="alerta-comunitaria oculto"></div>
     
     <div id="map"></div>
+
+    <a href="nosotros.html" class="marca-flotante-top" aria-label="Sobre Rutas Koox">
+        <img src="images/icon-512.png" alt="Logo" class="logo-flotante">
+        <span>Rutas Koox</span>
+    </a>
     
     <div id="panel-control" class="oculto">
         <div class="panel-header">
             <button id="btnMinimizarPanel" class="icon-btn-simple"><i class="ri-arrow-down-s-line"></i></button>
             
-            <h3>Rutas Koox</h3>
+            <div class="titulo-panel">
+                <h3>Rutas Koox</h3>
+            </div>
             
             <div class="header-buttons">
                 <button id="btnAjustes" class="icon-btn" aria-label="Ajustes"><i class="ri-settings-3-line"></i></button>
-                <button id="btnInfo" class="icon-btn" aria-label="Información"><i class="ri-information-line"></i></button>
+                <button id="btnInfo" class="icon-btn" aria-label="Tarifas"><i class="ri-information-line"></i></button>
             </div>
         </div>
 
@@ -331,5 +399,6 @@
             });
         }
     </script>
+    
 </body>
 </html>

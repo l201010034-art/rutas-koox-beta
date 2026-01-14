@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nosotros | Rutas Koox</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #0056b3;
+            --primary-dark: #003366;
+            --accent: #ff9900;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+        }
+
+        /* --- ANIMACIONES --- */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* --- HEADER FLOTANTE --- */
+        header {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px); /* Efecto Cristal */
+            padding: 1rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .logo {
+            font-weight: 900;
+            font-size: 1.4rem;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+        
+        .btn-back {
+            background: linear-gradient(135deg, var(--accent) 0%, #ff7b00 100%);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 15px rgba(255, 153, 0, 0.3);
+            transition: transform 0.2s ease;
+        }
+
+        .btn-back:hover {
+            transform: translateY(-2px);
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            background: linear-gradient(160deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 6rem 2rem 4rem;
+            text-align: center;
+            clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%); /* Corte diagonal moderno */
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            max-width: 700px;
+            margin: 0 auto;
+            opacity: 0.9;
+            font-weight: 300;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        /* --- CONTENIDO --- */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .story-section {
+            margin-top: 2rem;
+            margin-bottom: 4rem;
+            animation: fadeInUp 1.2s ease-out;
+        }
+
+        .story-section h2 {
+            font-size: 2rem;
+            color: var(--primary-dark);
+            margin-bottom: 1rem;
+        }
+
+        /* --- TARJETAS (GRID) --- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); /* Sombra suave tech */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.03);
+            animation: fadeInUp 1.4s ease-out;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.15);
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card h3 { 
+            color: var(--primary); 
+            margin-top: 0; 
+            font-size: 1.5rem;
+        }
+
+        .card p {
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+
+        /* --- LEGAL SECTION --- */
+        .legal-section {
+            background: #eef2f6;
+            padding: 3rem;
+            margin-top: 4rem;
+            border-radius: 20px;
+        }
+
+        .legal-section h2 { 
+            color: var(--text-main);
+            border-bottom: 2px solid #cbd5e1; 
+            padding-bottom: 1rem;
+        }
+        
+        .legal-text { 
+            font-size: 0.95rem; 
+            color: var(--text-light); 
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            background: var(--text-main);
+            color: white;
+            text-align: center;
+            padding: 4rem 2rem;
+            margin-top: 4rem;
+        }
+        
+        .footer-links a {
+            color: white;
+            opacity: 0.7;
+            margin: 0 10px;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        .footer-links a:hover { opacity: 1; color: var(--accent); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .hero { padding: 4rem 1.5rem 3rem; clip-path: polygon(0 0, 100% 0, 100% 95%, 0 100%); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="index.html" class="logo">Rutas Koox</a>
+        <a href="index.html" class="btn-back">← Volver al Mapa</a>
+    </header>
+
+    <section class="hero">
+        <h1>Ingeniería con Sello Campechano</h1>
+        <p>Transformando la movilidad urbana del sureste a través de inteligencia artificial, datos abiertos y pasión por nuestra ciudad.</p>
+    </section>
+
+    <div class="container">
+        
+        <div class="story-section">
+            <h2>👋 El Origen del Proyecto</h2>
+            <p>Rutas Koox no es solo una app; es una respuesta. Nacida en los laboratorios de ingeniería del <strong>Instituto Tecnológico de Lerma</strong>, esta iniciativa busca resolver una de las incógnitas más grandes de nuestro día a día: <em>"¿A qué hora pasa el camión?"</em>.</p>
+            <p>Somos un equipo local de ingeniería mecatrónica y desarrollo de software. No somos una corporación extranjera; somos campechanos que usamos el transporte público y entendemos la necesidad de modernizarlo.</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <span class="card-icon">🚀</span>
+                <h3>Nuestra Misión</h3>
+                <p>Democratizar la información de movilidad, ofreciendo una herramienta gratuita, precisa y accesible para que estudiantes, trabajadores y turistas lleguen a tiempo a su destino.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">👁️</span>
+                <h3>Nuestra Visión</h3>
+                <p>Posicionar a Campeche como una "Smart City" referente en México, demostrando que la tecnología local tiene la calidad para competir a nivel global.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">💙</span>
+                <h3>Valores</h3>
+                <p><strong>Innovación Social:</strong> Tecnología que sirve a la gente.<br>
+                <strong>Transparencia:</strong> Datos claros y abiertos.<br>
+                <strong>Identidad:</strong> Orgullosamente campechanos.</p>
+            </div>
+        </div>
+
+        <div class="legal-section">
+            <h2>🔒 Política de Privacidad y Transparencia</h2>
+            <div class="legal-text">
+                <p><strong>Última actualización: Enero 2026</strong></p>
+                <p>La confianza es nuestro motor. Aquí explicamos cómo funciona Rutas Koox:</p>
+                
+                <h4>1. Geolocalización Responsable</h4>
+                <p>La aplicación utiliza tu ubicación GPS <strong>exclusivamente en tiempo real</strong> para mostrarte en el mapa y calcular rutas. No almacenamos, rastreamos ni guardamos tu historial de ubicación en nuestros servidores.</p>
+
+                <h4>2. Tecnología Offline</h4>
+                <p>Usamos "Service Workers" para guardar datos básicos en tu teléfono. Esto permite que la app cargue instantáneamente y funcione incluso si tienes poca señal.</p>
+
+                <h4>3. Datos Personales</h4>
+                <p>No recopilamos nombres, teléfonos ni correos a menos que nos contactes directamente por soporte. Tu navegación es anónima.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <h3 style="margin-top: 0;">Rutas Koox</h3>
+        <p style="opacity: 0.6;">Conectando Campeche, un viaje a la vez.</p>
+        
+        <div class="footer-links" style="margin: 2rem 0;">
+            <a href="mailto:contacto@rutaskoox.com">Contacto</a> • 
+            <a href="mailto:soporte@rutaskoox.com">Soporte</a> • 
+            <a href="https://github.com/tuusuario" target="_blank">GitHub</a>
+        </div>
+
+        <small style="opacity: 0.4;">© 2026 Rutas Koox Project. Todos los derechos reservados.</small>
+    </footer>
+
+</body>
+</html>

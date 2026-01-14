@@ -684,3 +684,35 @@ body.dark-mode .chip:active { background-color: #444; }
     filter: drop-shadow(0 3px 2px rgba(0,0,0,0.3));
     margin-top: -15px; /* Ajuste para que la punta toque el lugar */
 }
+
+/* Estilo para la Marca en el Header */
+.marca-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: inherit; /* IMPORTANTE: Hereda el color (negro o blanco) según tu tema */
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    flex-grow: 1; /* Ocupa el espacio central */
+    margin: 0 10px; /* Separación de los botones laterales */
+}
+
+.marca-header:hover {
+    opacity: 0.7; /* Efecto visual al tocar */
+}
+
+.logo-mini {
+    height: 28px; /* Tamaño perfecto para header móvil */
+    width: auto;
+    margin-right: 8px;
+    border-radius: 6px; /* Bordes suaves estilo iOS */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Sombra sutil */
+}
+
+/* Aseguramos que el H3 se comporte bien dentro del link */
+.marca-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    white-space: nowrap; /* Evita que el texto se rompa en dos líneas */
+}
