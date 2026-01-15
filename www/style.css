@@ -753,68 +753,103 @@ body.dark-mode .chip:active { background-color: #444; }
     display: none !important;
 }
 
-/* Corrección para botón de recorrido en ajustes */
-#btnIniciarRecorrido {
-    background-color: #0056b3; /* Azul visible */
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 8px;
-    width: 100%;
-    margin-top: 15px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;       /* Para alinear icono y texto si tiene */
+/* --- ESTILO DE LA PASTILLA FLOTANTE --- */
+.marca-flotante-top {
+    position: fixed; /* Fixed para que flote sobre todo */
+    
+    /* 🧠 CÁLCULO INTELIGENTE: 
+       15px base + lo que mida la barra de estado del celular (safe-area) */
+    top: calc(env(safe-area-inset-top) + 15px);
+    
+    left: 50%;
+    transform: translateX(-50%); /* Centrado perfecto */
+    
+    /* Diseño Cristal (Glassmorphism) */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    
+    padding: 8px 20px;
+    border-radius: 50px; /* Bordes totalmente redondos */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15); /* Sombra suave */
+    
+    z-index: 2000; /* Por encima del mapa y paneles */
+    
+    display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    text-decoration: none;
+    color: #1a1a1a; /* Texto oscuro */
+    font-weight: 700;
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
 }
 
-#btnIniciarRecorrido:hover {
-    background-color: #004494;
+.marca-flotante-top:active {
+    transform: translateX(-50%) scale(0.95); /* Efecto de click */
 }
 
-/* En modo oscuro, podemos cambiar el color si quieres */
-body.dark-mode #btnIniciarRecorrido {
-    background-color: #4dabf7;
-    color: #121212;
+.logo-flotante {
+    width: 22px;
+    height: 22px;
+    margin-right: 10px;
+    border-radius: 5px;
 }
 
-/* Corrección: Botón de recorrido COMPACTO */
+/* --- SOPORTE MODO OSCURO (Opcional, si usas la clase .dark-mode en body) --- */
+body.dark-mode .marca-flotante-top {
+    background: rgba(30, 30, 30, 0.95);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* --- 1. SOLUCIÓN AL BLOQUEO DEL TOUR (Z-INDEX) --- */
+
+/* La caja de texto y botones del tour (Popover) */
+.driver-popover {
+    z-index: 1000000000 !important; /* Mil millones: Siempre visible */
+}
+
+/* El menú desplegable de Choices.js */
+.choices__list--dropdown, 
+.choices__list[aria-expanded="true"] {
+    z-index: 1000000001 !important; /* Mil millones + 1: Encima del tour */
+    visibility: visible !important;
+    opacity: 1 !important; 
+}
+
+/* Asegurar que el contenedor del buscador resalte sobre lo oscuro */
+.driver-active-element {
+    z-index: 1000000000 !important;
+    position: relative !important;
+}
+
+/* --- 2. BOTÓN DE RECORRIDO (Diseño Compacto) --- */
+/* Reemplaza cualquier estilo anterior de #btnIniciarRecorrido con este */
 #btnIniciarRecorrido {
     background-color: #007bff !important;
     color: white !important;
     border: none;
-    padding: 8px 16px;       /* Menos relleno (antes era 12px 20px) */
-    border-radius: 20px;     /* Bordes más redondos (estilo chip) */
-    width: auto;             /* ⬅️ CLAVE: Ya no ocupa el 100% */
-    display: inline-flex;    /* Se ajusta al tamaño del texto */
+    
+    /* TAMAÑO COMPACTO */
+    padding: 6px 14px !important;    /* Menos relleno */
+    border-radius: 20px !important;  /* Estilo 'Chip' redondo */
+    width: auto !important;          /* Que se ajuste al texto */
+    display: inline-flex !important; /* Evita que ocupe todo el ancho */
+    float: right;                    /* Alineado a la derecha */
+    
     margin-top: 10px;
     font-weight: 600;
-    font-size: 0.85rem;      /* Letra un poco más chica */
+    font-size: 0.8rem !important;    /* Letra más pequeña */
     cursor: pointer;
     align-items: center;
     justify-content: center;
     gap: 6px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     transition: transform 0.2s, background 0.2s;
-    float: right;            /* Lo alineamos a la derecha para que se vea pro */
 }
 
 #btnIniciarRecorrido:hover {
     background-color: #0056b3 !important;
     transform: scale(1.05);
-}
-
-#btnIniciarRecorrido:active {
-    transform: scale(0.95);
-}
-
-/* 🚨 SOLUCIÓN PARA QUE EL MENÚ SE VEA SOBRE EL TOUR 🚨 */
-/* Esto obliga al menú desplegable a estar ENCIMA de todo el tutorial */
-.choices__list.is-active {
-    z-index: 99999999 !important; 
-}
-.driver-popover {
-    z-index: 99999990 !important;
 }
