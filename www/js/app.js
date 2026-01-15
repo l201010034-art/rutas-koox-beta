@@ -27,6 +27,16 @@ async function mantenerPantallaEncendida() {
     }
 }
 
+/* --- Función de espera (Debounce) para no saturar el buscador --- */
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
+
 async function solicitarPermisosIniciales() {
     try {
         // --- 1. PERMISO DE UBICACIÓN (GPS) ---
@@ -373,15 +383,22 @@ const btnMinimizarNav = document.getElementById('btnMinimizarNav');
         });
     }
 
-    // --- B. BOTÓN DE LUPA (Búsqueda manual) ---
-    if (btnBuscarLugar) {
-        btnBuscarLugar.addEventListener('click', () => {
-            const busqueda = prompt("🔍 ¿A dónde quieres ir?\n(Ej: Walmart, IMSS, Secundaria 7)");
-            if (busqueda && busqueda.trim().length > 2) {
-                ejecutarBusquedaInternet(busqueda);
+// --- B. BOTÓN DE LUPA (Ahora solo enfoca el menú) ---
+if (btnBuscarLugar) {
+    btnBuscarLugar.addEventListener('click', () => {
+        if (choicesDestino) {
+            // 1. Enfocamos el buscador del menú
+            choicesDestino.showDropdown();
+            
+            // 2. Opcional: Si ya escribió algo, forzamos la búsqueda
+            const textoActual = choicesDestino.input.value;
+            if(textoActual && textoActual.length > 2) {
+                // Disparamos el evento manualmente para reactivar la búsqueda
+                choicesDestino.input.element.dispatchEvent(new Event('input', { bubbles: true }));
             }
-        });
-    }
+        }
+    });
+}
 
     // --- C. BOTÓN MODO TURISTA ---
     if (btnModoTurista) {
@@ -647,86 +664,108 @@ function copiarLink() {
     }
 }
 
-
 function initChoicesSelect() {
+    // 1. Inicializamos Choices LIMPIO
+    if (choicesDestino) choicesDestino.destroy();
     
-    const choicesData = todosLosParaderos.map(paradero => {
-        const props = paradero.properties;
-        const nombreCalle = props.NOMVIAL || props.calle_cercana || "";
-        const nombreColonia = props.NOM_COL || props.colonia_cercana || "";
-
-        return {
-            value: props.originalIndex,
-            label: props.nombre,
-            customProperties: { 
-                calle: nombreCalle,
-                colonia: nombreColonia
-            }
-        };
-    });
-
     choicesDestino = new Choices(selectDestino, {
-        choices: choicesData,
-        itemSelectText: 'Seleccionar',
-        searchPlaceholderValue: 'Escribe paradero, calle o colonia...',
+        choices: [], // Arrancamos vacíos
+        itemSelectText: 'Ir aquí',
+        searchPlaceholderValue: 'Escribe un lugar (ej. Walmart, Centro)...',
         shouldSort: false,
-        removeItemButton: true,
-        searchFields: ['label', 'customProperties.calle', 'customProperties.colonia'],
-        
-// ... dentro de initChoicesSelect ...
-
-        callbackOnCreateTemplates: function(template) {
-            return {
-                item: ({ classNames }, data) => {
-                    // ⬇️⬇️ CORRECCIÓN ⬇️⬇️
-                    // 1. Obtener 'props' de forma segura. Si customProperties no existe, usar un objeto vacío.
-                    const props = data.customProperties || {}; 
-                    // 2. Obtener el subtexto de forma segura.
-                    const subtext = props.calle || props.colonia || '';
-                    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
-                    
-                    return template(
-                        `<div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}" data-item data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''}>
-                            <span>${data.label}</span>
-                            <small>${subtext}</small> </div>`
-                    );
-                },
-                choice: ({ classNames }, data) => {
-                    // ⬇️⬇️ CORRECCIÓN (Aplicada también aquí por seguridad) ⬇️⬇️
-                    const props = data.customProperties || {};
-                    const subtext = props.calle || props.colonia || '';
-                    // ⬆️⬆️ FIN DE LA CORRECCIÓN ⬆️⬆️
-
-                    return template(
-                        `<div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}" data-select-text="${this.config.itemSelectText}" data-choice ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}" data-id="${data.id}" data-value="${data.value}" ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}>
-                            <span>${data.label}</span>
-                            <small>${subtext}</small> </div>`
-                    );
-                },
-            };
-        }
+        searchResultLimit: 20,
+        noResultsText: 'Escribe para buscar...',
+        loadingText: 'Cargando...',
     });
 
-    selectDestino.addEventListener('change', (event) => {
-        // ⬇️ MODIFICADO: Comprueba si hay un paradero de inicio (manual O por GPS) ⬇️
-        if (!paraderoInicioCercano) {
-            alert("Espera a que se detecte tu ubicación o selecciona un inicio manual.");
-            choicesDestino.clearInput();
-            choicesDestino.removeActiveItems(); // Limpiar la selección
-            return;
-        }
-        
-        const destinoIndex = event.detail.value;
-        if (destinoIndex) {
-            paraderoFin = todosLosParaderos.find(p => p.properties.originalIndex == destinoIndex);
+    let ultimoTextoBuscado = "";
+    
+    // Referencia al loader HTML
+    const loaderEl = document.getElementById('loader-busqueda');
 
-            // ⬇️⬇️ CORRECCIÓN 1: Se usa "paraderoInicioCercano" (el paradero) en lugar de "puntoDePartida" ⬇️⬇️
-            // Esto evita el error "undefined" si el GPS está activo.
-            const puntoDePartida = paraderoInicioCercano; 
+ // ... dentro de initChoicesSelect ...
+
+    // 2. EVENTO DE BÚSQUEDA (Con Loader y Alerta de Vacío)
+    const buscadorInternet = debounce(async (event) => {
+        const texto = event.detail.value;
+        
+        if (!texto || texto.length < 3) return;
+        if (texto === ultimoTextoBuscado) return;
+
+        console.log(`🔎 Buscando '${texto}' en internet...`);
+
+        try {
+            // A. Activar Loader
+            if (loaderEl) loaderEl.classList.remove('oculto');
+
+            const resultados = await buscarLugarEnNominatim(texto);
             
-            // ⬇️⬇️ CORRECCIÓN 2: Se pasa "todosLosParaderos" a la función ⬇️⬇️
-            listaDePlanes = encontrarRutaCompleta(puntoDePartida, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
-            mostrarPlanes(listaDePlanes);
+            // Variable para las nuevas opciones
+            let nuevasOpciones = [];
+            
+            // --- B. MANEJO DE RESULTADOS ---
+            if (resultados && resultados.length > 0) {
+                // SÍ HAY RESULTADOS
+                nuevasOpciones = resultados.map((lugar, index) => ({
+                    value: `ext_${lugar.lat}_${lugar.lng}_${index}`, 
+                    label: `📍 ${lugar.nombre}`, 
+                    customProperties: { fullData: lugar }
+                }));
+            } else {
+                // NO HAY RESULTADOS (ALERTA VISUAL)
+                // Creamos una opción deshabilitada que sirva de mensaje
+                nuevasOpciones = [{
+                    value: 'no_found',
+                    label: `🚫 No encontramos nada para "${texto}"`,
+                    disabled: true, // No se puede seleccionar
+                    customProperties: { tipo: 'aviso' }
+                }];
+                console.log("Búsqueda vacía, mostrando alerta.");
+            }
+
+            // --- C. ACTUALIZAR UI (Común para ambos casos) ---
+            const textoUsuario = choicesDestino.input.element.value;
+            ultimoTextoBuscado = textoUsuario;
+
+            // Reemplazamos la lista
+            choicesDestino.setChoices(nuevasOpciones, 'value', 'label', true); 
+
+            // Restauramos texto
+            if (textoUsuario) {
+                setTimeout(() => {
+                    const input = choicesDestino.input.element;
+                    input.value = textoUsuario;
+                    input.focus();
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }, 50); 
+            }
+
+        } catch (e) {
+            console.error("Error buscando:", e);
+            // En caso de error técnico, también avisamos
+            choicesDestino.setChoices([{
+                value: 'error',
+                label: '⚠️ Error de conexión. Intenta de nuevo.',
+                disabled: true
+            }], 'value', 'label', true);
+            
+        } finally {
+            // D. Desactivar Loader
+            if (loaderEl) loaderEl.classList.add('oculto');
+        }
+
+    }, 800); 
+
+    selectDestino.addEventListener('search', buscadorInternet);
+
+    // 3. MANEJO DE SELECCIÓN
+    selectDestino.addEventListener('change', (event) => {
+        const valor = event.detail.value;
+        if (valor.startsWith('ext_')) {
+            const opcion = choicesDestino._store.choices.find(c => c.value === valor);
+            if (opcion && opcion.customProperties.fullData) {
+                procesarSeleccionLugar(opcion.customProperties.fullData);
+            }
         }
     });
 }
@@ -1741,12 +1780,8 @@ function actualizarPanelDeInicio() {
     });
 }
 
-/**
- * (NUEVO MÓDULO) Se activa al hacer clic en un item del historial.
- * Simula la selección de inicio y fin, y ejecuta la búsqueda.
- */
 async function ejecutarBusquedaGuardada(event) {
-    const item = event.currentTarget; // 'currentTarget' es el <div> al que añadimos el listener
+    const item = event.currentTarget;
     const inicioId = item.dataset.inicioId;
     const finId = item.dataset.finId;
 
@@ -1754,31 +1789,37 @@ async function ejecutarBusquedaGuardada(event) {
 
     console.log(`Cargando historial: Inicio ${inicioId}, Fin ${finId}`);
 
-    // 1. Encontrar los paraderos en nuestra lista
+    // 1. Encontrar los paraderos en la base de datos interna
     const paraderoInicio = todosLosParaderos.find(p => p.properties.originalIndex == inicioId);
-    paraderoFin = todosLosParaderos.find(p => p.properties.originalIndex == finId); // 'paraderoFin' es global
+    paraderoFin = todosLosParaderos.find(p => p.properties.originalIndex == finId);
 
     if (!paraderoInicio || !paraderoFin) {
-        alert("Error: No se pudieron encontrar los paraderos de esta ruta guardada.");
+        alert("Error: Datos de ruta no encontrados.");
         return;
     }
 
-    // 2. Asignamos el paradero de inicio (como si fuera modo manual)
-    paraderoInicioCercano = paraderoInicio; // 'paraderoInicioCercano' es global
-    puntoInicio = null; // Nos aseguramos de que no use el GPS
-
-    // 3. Forzar los selectores (Choices.js) a mostrar los valores
-    // ⬇️ Esto también corrige un bug visual: muestra el selector manual
+    // 2. Configurar Inicio
+    paraderoInicioCercano = paraderoInicio; 
+    puntoInicio = null; 
     controlInputInicio.style.display = 'none';
     controlSelectInicio.style.display = 'block';
-    
-    choicesInicioManual.setChoiceByValue(inicioId.toString());
-    choicesDestino.setChoiceByValue(finId.toString());
+    // (Asumimos que el selector de inicio manual sí tiene la lista cargada)
+    if(choicesInicioManual) choicesInicioManual.setChoiceByValue(inicioId.toString());
 
-    // 4. Ejecutar la búsqueda (la misma lógica que usas en 'initChoicesSelect')
-    listaDePlanes = encontrarRutaCompleta(paraderoInicioCercano, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
+    // 3. CONFIGURAR DESTINO (CORRECCIÓN CRÍTICA)
+    // Como el menú de destino ahora está vacío, primero "inyectamos" este paradero
+    // para poder seleccionarlo visualmente.
+    const opcionTemporal = {
+        value: finId.toString(),
+        label: paraderoFin.properties.nombre,
+        selected: true // ¡Lo marcamos seleccionado de una vez!
+    };
     
-    // 5. Mostrar los resultados
+    // Agregamos la opción y reemplazamos lo que había (true)
+    choicesDestino.setChoices([opcionTemporal], 'value', 'label', true); 
+
+    // 4. Ejecutar la búsqueda
+    listaDePlanes = encontrarRutaCompleta(paraderoInicioCercano, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
     mostrarPlanes(listaDePlanes);
 }
 
@@ -2365,38 +2406,64 @@ window.app.seleccionarResultado = (index) => {
 };
 
 /**
- * Lógica final: Toma un lugar (lat/lng), busca el paradero y actualiza el mapa.
+ * Lógica final: Toma un lugar (lat/lng), busca el paradero y, si hay inicio, TRAZA LA RUTA.
  */
 function procesarSeleccionLugar(lugar) {
     const infoLabel = document.getElementById('info-lugar-buscado');
     console.log("Procesando lugar:", lugar);
 
-    // 1. Buscar paradero más cercano (Turf.js)
+    // 1. Buscar paradero más cercano al destino elegido
     const puntoLugar = turf.point([lugar.lng, lugar.lat]);
     const paraderoCercano = encontrarParaderoMasCercano(puntoLugar);
 
     if (paraderoCercano) {
-        // 2. Actualizar variables globales
+        // 2. Actualizar variable global de destino
         paraderoFin = paraderoCercano; 
         
-        // 3. Actualizar el selector visual (Choices.js)
+        // 3. Actualizar VISUALMENTE el selector (Choices.js)
         if(choicesDestino) {
+            // Esto pone el nombre del paradero en la cajita del menú
             choicesDestino.setChoiceByValue(paraderoCercano.properties.originalIndex.toString());
         }
 
-        // 4. Feedback en el panel
-        const panelInst = document.getElementById('panel-instrucciones');
-        panelInst.innerHTML = `
-            <div class="alerta-verde" style="text-align:left; margin-top:0;">
-                <strong>✅ Destino Fijado:</strong><br>
-                ${lugar.nombre}
-                <hr style="margin:5px 0; border:0; border-top:1px solid rgba(0,0,0,0.1);">
-                <small>Baja en paradero: <strong>${paraderoCercano.properties.nombre}</strong></small>
-            </div>
-            <p style="margin-top:10px; text-align:center;">Ahora selecciona tu punto de inicio o usa el GPS.</p>
-        `;
+        // ---------------------------------------------------------
+        // 🚀 AQUÍ ESTÁ LA MAGIA: AUTO-ARRANQUE DE RUTA
+        // ---------------------------------------------------------
+        
+        // Verificamos si ya tenemos un punto de partida (ya sea por GPS o Manual)
+        if (paraderoInicioCercano) {
+            console.log("📍 Inicio detectado, calculando ruta automática...");
+            
+            // a) Limpiamos mensajes anteriores
+            instruccionesEl.innerHTML = ''; 
 
-        // 5. Dibujar pin temporal en el mapa
+            // b) Ejecutamos la búsqueda de ruta DIRECTAMENTE
+            // (Usamos las mismas funciones que usa el selector normal)
+            const puntoDePartida = paraderoInicioCercano;
+            listaDePlanes = encontrarRutaCompleta(puntoDePartida, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
+            
+            // c) Mostramos los resultados (las líneas azules y opciones)
+            mostrarPlanes(listaDePlanes);
+            
+        } else {
+            // Si NO tenemos GPS aún, mostramos mensaje pidiendo inicio
+            const panelInst = document.getElementById('panel-instrucciones');
+            panelInst.innerHTML = `
+                <div class="alerta-verde" style="text-align:left; margin-top:0;">
+                    <strong>✅ Destino: ${lugar.nombre}</strong><br>
+                    <small>Paradero más cercano: ${paraderoCercano.properties.nombre}</small>
+                </div>
+                <div style="background:#fff3e0; color:#e65100; padding:10px; margin-top:10px; border-radius:8px; border:1px solid #ffe0b2; text-align:center;">
+                    📍 <strong>Falta tu ubicación</strong><br>
+                    Espera al GPS o selecciona un "Inicio Manual" arriba.
+                </div>
+            `;
+        }
+        
+        // 4. Aseguramos que el panel se abra para ver el resultado
+        abrirPanelControl();
+
+        // 5. Dibujar pin temporal en el mapa (solo visual)
         const tempMarker = L.marker([lugar.lat, lugar.lng], {
             icon: L.divIcon({
                 className: 'icono-destino-especial',
@@ -2405,9 +2472,9 @@ function procesarSeleccionLugar(lugar) {
             })
         }).addTo(map).bindPopup(`<b>${lugar.nombre}</b>`).openPopup();
         
-        // 6. Centrar mapa y limpiar pin luego
+        // 6. Centrar mapa y limpiar pin luego de unos segundos
         map.setView([lugar.lat, lugar.lng], 16);
-        setTimeout(() => map.removeLayer(tempMarker), 8000);
+        setTimeout(() => map.removeLayer(tempMarker), 5000);
 
     } else {
         alert("El lugar existe, pero está muy lejos de cualquier ruta de transporte.");

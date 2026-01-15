@@ -1,33 +1,135 @@
 // js/searchService.js
 
-const VIEWBOX_CAMPECHE = "-90.65,19.75,-90.45,19.95"; 
+// 1. DEFINICIÓN DE LÍMITES ESTRICTOS (Rectángulo geográfico de Campeche)
+const LIMITES_CAMPECHE = {
+    norte: 20.0000,
+    sur: 19.7000,
+    oeste: -90.7500,
+    este: -90.3500
+};
+
+const VIEWBOX_API = `${LIMITES_CAMPECHE.oeste},${LIMITES_CAMPECHE.norte},${LIMITES_CAMPECHE.este},${LIMITES_CAMPECHE.sur}`;
 
 /**
- * 1. FUNCIÓN DE BÚSQUEDA (Internet)
- * Ahora acepta un límite y devuelve un ARRAY de resultados.
+ * Función Auxiliar: Verifica si una coordenada está dentro de Campeche
  */
-export async function buscarLugarEnNominatim(query, limit = 20) {
-    if (!query || query.length < 3) return [];
+function esCoordenadaLocal(lat, lng) {
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    
+    return latNum <= LIMITES_CAMPECHE.norte &&
+           latNum >= LIMITES_CAMPECHE.sur &&
+           lngNum >= LIMITES_CAMPECHE.oeste &&
+           lngNum <= LIMITES_CAMPECHE.este;
+}
 
-    // Añadimos 'limit' a la URL
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${VIEWBOX_CAMPECHE}&bounded=1&limit=${limit}`;
+/**
+ * 🧠 DICCIONARIO INTELIGENTE
+ * Corrige lo que escribe el usuario antes de enviarlo a internet.
+ */
+function corregirErroresComunes(query) {
+    let texto = query.toLowerCase().trim();
+
+    // MAPA DE CORRECCIONES (Puedes agregar más aquí)
+    // "lo que escribe" : "lo que debe buscar"
+    const correcciones = {
+        "sams": "Sam's Club",
+        "sam's": "Sam's Club",
+        "sams club": "Sam's Club",
+        "walmart": "Walmart", // Para que encuentre el grande
+        "aurrera": "Bodega Aurrera",
+        "chedraui": "Chedraui",
+        "soriana": "Soriana",
+        "imss": "IMSS",
+        "issste": "ISSSTE",
+        "ado": "Terminal ADO",
+        "aeropuerto": "Aeropuerto",
+        "areopuerto": "Aeropuerto",
+        "mercado municipal": "Mercado Municipal Campeche",
+        "cetmar": "Calle Sixto Perez Cuevas",
+        "CETMAR 02": "Calle Sixto Perez Cuevas",
+        "cetmar 2": "Calle Sixto Perez Cuevas",
+
+    };
+
+    // 1. Búsqueda exacta (ej. usuario escribió solo "sams")
+    if (correcciones[texto]) {
+        return correcciones[texto];
+    }
+
+    // 2. Búsqueda parcial (ej. usuario escribió "ir al sams por favor")
+    // Reemplazamos palabras clave dentro de la frase
+    Object.keys(correcciones).forEach(error => {
+        // Usamos Regex para reemplazar solo palabras completas (\b)
+        const regex = new RegExp(`\\b${error}\\b`, 'gi');
+        if (regex.test(texto)) {
+            texto = texto.replace(regex, correcciones[error]);
+        }
+    });
+
+    return texto;
+}
+
+/* Función de Búsqueda V7: Con Autocorrector y Filtro Geográfico */
+export async function buscarLugarEnNominatim(query, limit = 8) {
+    
+    // PASO A: APLICAR AUTOCORRECTOR
+    // Si entra "sams", sale "Sam's Club"
+    let queryMejorada = corregirErroresComunes(query);
+    console.log(`🧠 Autocorrector: "${query}" -> "${queryMejorada}"`);
+
+    const limitInterno = 40; 
+    const baseParams = `&format=json&limit=${limitInterno}&addressdetails=1&countrycodes=mx`;
+
+    // --- INTENTO 1: BÚSQUEDA ESPECÍFICA (+ Campeche) ---
+    let query1 = queryMejorada;
+    if (!/campeche|lerma|china|chiná/i.test(query1)) {
+        query1 += ", Campeche";
+    }
+
+    const url1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query1)}${baseParams}&viewbox=${VIEWBOX_API}&bounded=1`;
 
     try {
-        const response = await fetch(url);
-        const data = await response.json();
+        let response = await fetch(url1);
+        let data = await response.json();
+
+        // 🔍 FILTRO DURO DE COORDENADAS
+        let resultadosLocales = data.filter(item => esCoordenadaLocal(item.lat, item.lon));
+
+        if (resultadosLocales.length > 0) {
+            return procesarResultados(resultadosLocales.slice(0, limit));
+        }
+
+        // --- INTENTO 2: BÚSQUEDA RELAJADA (Solo Viewbox) ---
+        console.warn(`⚠️ Intento 1 sin resultados. Probando abierto con: "${queryMejorada}"`);
+
+        const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryMejorada)}${baseParams}&viewbox=${VIEWBOX_API}`;
         
-        // Mapeamos TODOS los resultados, no solo el primero (data[0])
-        return data.map(item => ({
-            lat: parseFloat(item.lat),
-            lng: parseFloat(item.lon),
-            nombre: item.display_name.split(',')[0], // Solo el nombre principal
-            direccion: item.display_name // Dirección completa para mostrar detalles
-        }));
+        response = await fetch(url2);
+        data = await response.json();
+
+        resultadosLocales = data.filter(item => esCoordenadaLocal(item.lat, item.lon));
+
+        if (resultadosLocales.length > 0) {
+            return procesarResultados(resultadosLocales.slice(0, limit));
+        }
+
+        return [];
 
     } catch (error) {
-        console.error("Error en searchService:", error);
-        return []; // Retorna arreglo vacío en caso de error
+        console.error("Error buscando lugar:", error);
+        return [];
     }
+}
+
+function procesarResultados(data) {
+    return data.map(item => ({
+        nombre: item.display_name.split(',')[0], 
+        direccion: item.display_name,            
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon),
+        tipo: item.type
+    }));
 }
 
 /**

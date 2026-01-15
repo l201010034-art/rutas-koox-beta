@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
     <link rel="stylesheet" href="style.min.css" />
 
     <style>
@@ -285,6 +286,9 @@ body.dark-mode .marca-flotante-top {
                 <div class="setting-item">
                     <div class="setting-label"><span>Modo Oscuro</span></div>
                     <label class="switch"><input type="checkbox" id="checkDarkMode"><span class="slider round"></span></label>
+                    <button onclick="iniciarTour()" style="background:var(--primary); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                        Ver Tutorial
+                    </button>
                 </div>
             </div>
             <div class="settings-section">
@@ -399,6 +403,13 @@ body.dark-mode .marca-flotante-top {
             });
         }
     </script>
-    
+    <script src="js/tour.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+    <div id="loader-busqueda" class="overlay-loader oculto">
+        <div class="loader-content">
+            <i class="ri-loader-2-line ri-spin" style="font-size: 3rem; color: #0056b3;"></i>
+            <p>Buscando lugares...</p>
+        </div>
+    </div>
 </body>
 </html>
