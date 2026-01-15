@@ -11,27 +11,26 @@ export function iniciarTour() {
     // 1. PREPARACIÓN
     if (panelControl) {
         panelControl.classList.remove('oculto');
-        panelControl.style.cssText = ''; // Limpiamos estilos viejos
+        panelControl.style.cssText = ''; 
     }
     if(panelNavegacion) panelNavegacion.classList.add('oculto');
 
-    // 2. CREAR "FANTASMA" MEJORADO (Para el Paso 2)
+    // 2. CREAR "FANTASMA" (AJUSTADO) 👻
     let anclaFantasma = document.getElementById('tour-phantom-anchor');
     if (!anclaFantasma) {
         anclaFantasma = document.createElement('div');
         anclaFantasma.id = 'tour-phantom-anchor';
-        // CONFIGURACIÓN CLAVE:
-        // Top: 0 y Height: 160px aseguran que el recuadro esté ARRIBA.
-        // Z-Index positivo asegura que el driver lo detecte bien.
+        
+        // --- 🔧 EL AJUSTE CLAVE ---
         anclaFantasma.style.cssText = `
-            position: fixed;
+            position: absolute;  /* Usamos absolute para anclarlo al inicio de la página */
             top: 0;
             left: 0;
             width: 100%;
-            height: 160px; 
-            z-index: 5000;  
+            height: 120px;       /* Altura reducida: Solo cubre el encabezado */
+            z-index: 5001;  
             pointer-events: none;
-            opacity: 0; 
+            background: rgba(0,0,0,0); /* Transparente pero "existe" para el navegador */
         `;
         document.body.appendChild(anclaFantasma);
     }
@@ -40,7 +39,7 @@ export function iniciarTour() {
         showProgress: true,
         animate: true,
         
-        // Configuración "Invisible e Interactivo"
+        // Configuración
         overlayOpacity: 0,       
         allowClose: true,        
         overlayClickNext: false, 
@@ -49,7 +48,6 @@ export function iniciarTour() {
         nextBtnText: 'Siguiente',
         prevBtnText: 'Atrás',
         
-        // Limpieza
         onDestroyed: () => {
             const fantasma = document.getElementById('tour-phantom-anchor');
             if (fantasma) fantasma.remove();
@@ -60,29 +58,29 @@ export function iniciarTour() {
             { 
                 popover: { 
                     title: '👋 ¡Hola!', 
-                    description: 'Bienvenido a Rutas Koox. Sigue estos pasos rápidos.',
+                    description: 'Bienvenido a Rutas Koox. Sigue estos pasos.',
                     side: "center", align: 'center' 
                 } 
             },
             
-            // PASO 2: FANTASMA (Panel Superior)
+            // PASO 2: PANEL SUPERIOR (Ahora la burbuja saldrá arriba)
             { 
-                element: '#tour-phantom-anchor', 
+                element: '.choices__inner-search', 
                 popover: { 
                     title: 'Tu Panel de Control', 
                     description: 'Aquí arriba escribes tu destino y buscas rutas.',
-                    side: "bottom", // Forzamos que el texto salga DEBAJO del recuadro (o sea, en medio de la pantalla)
-                    align: 'center' 
+                    side: "center", // "Bottom" significa: Pon el texto DEBAJO del elemento fantasma
+                    align: 'center',
                 }
             },
             
-            // PASO 3: MENÚ INFERIOR (Corregido con CSS)
+            // PASO 3: MENÚ INFERIOR
             { 
                 element: '.bottom-nav', 
                 popover: { 
                     title: 'Menú Inferior', 
                     description: 'Cambia entre Viaje, Explorar y Reportar aquí abajo.',
-                    side: "top",    // El texto sale ARRIBA del menú
+                    side: "top",    // "Top" significa: Pon el texto ENCIMA del menú
                     align: 'center' 
                 } 
             }
@@ -94,12 +92,12 @@ export function iniciarTour() {
 
 export function checkAndStartTour() {
     setTimeout(() => {
-        // Versión final arreglada
-        const tourVisto = localStorage.getItem('tour_visto_fixed_nav_v2'); 
+        // Versión final V3
+        const tourVisto = localStorage.getItem('tour_visto_posicion_v4'); 
         
         if (!tourVisto) {
             iniciarTour();
-            localStorage.setItem('tour_visto_fixed_nav_v2', 'true');
+            localStorage.setItem('tour_visto_posicion_v3', 'true');
         }
     }, 1000);
 }
