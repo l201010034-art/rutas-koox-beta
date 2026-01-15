@@ -678,11 +678,12 @@ body.dark-mode .chip:active { background-color: #444; }
 
 /* 4. DESTINO FINAL (Meta) */
 .icono-mapa-destino {
-    /* Usamos el SVG del icono directamente o un fondo */
     color: #d32f2f; /* Rojo */
     font-size: 32px;
     filter: drop-shadow(0 3px 2px rgba(0,0,0,0.3));
-    margin-top: -15px; /* Ajuste para que la punta toque el lugar */
+    /* ELIMINADO: margin-top: -15px; -> Esto lo desalineaba */
+    display: block; /* Asegura que ocupe el espacio correcto */
+    line-height: 32px; /* Centrado vertical perfecto */
 }
 
 /* Estilo para la Marca en el Header */

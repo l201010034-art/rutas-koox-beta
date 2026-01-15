@@ -109,6 +109,33 @@ const db = firebase.firestore(); // ⬅️ Sintaxis v8
 const rtdb = firebase.database(); // ⬅️ Sintaxis v8
 // ⬆️⬆️ FIN DEL MÓDULO FIREBASE ⬆️⬆️
 
+const verificarMantenimiento = () => {
+    const pantallaMant = document.getElementById('pantalla-mantenimiento');
+    if (!pantallaMant) return;
+
+    // Escuchamos la variable 'config/mantenimiento_activo' en la base de datos
+    // Nota: Tú crearás esta ruta en Firebase luego o usarás el Admin para cambiarla
+    rtdb.ref('config/mantenimiento_activo').on('value', (snapshot) => {
+        const estaEnMantenimiento = snapshot.val();
+
+        if (estaEnMantenimiento === true) {
+            console.warn("⚠️ MODO MANTENIMIENTO ACTIVADO");
+            // 1. Mostramos la cortina
+            pantallaMant.classList.remove('oculto');
+            // 2. Opcional: Forzamos 'display: flex' por si la clase oculto usa !important
+            pantallaMant.style.display = 'flex'; 
+        } else {
+            console.log("✅ Sistema operativo");
+            // Ocultamos la cortina
+            pantallaMant.classList.add('oculto');
+            pantallaMant.style.display = 'none';
+        }
+    });
+};
+
+// Llamamos a la función
+verificarMantenimiento();
+
 
 // --- 2. VARIABLES GLOBALES DE ESTADO ---
 let todosLosParaderos = [];

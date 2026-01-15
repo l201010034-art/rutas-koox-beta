@@ -58,7 +58,7 @@ export const iconoTransbordo = L.divIcon({
 // 3. ICONO DESTINO (Pin Rojo)
 export const iconoDestino = L.divIcon({
     className: 'custom-div-icon', 
-    html: '<i class="ri-map-pin-flag-fill unselectable icono-mapa-destino"></i>',
+    html: '<i class="ri-map-pin-fill unselectable icono-mapa-destino"></i>',
     iconSize: [32, 32],
     iconAnchor: [16, 32],   
     popupAnchor: [0, -32]

@@ -3,353 +3,402 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guía Maestra | Rutas Koox</title>
+    <title>Manual de Usuario | Rutas Koox</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="style.min.css"> 
+    <link rel="stylesheet" href="style.css"> 
 
     <style>
- /* --- ESTILOS DEL MANUAL PREMIUM --- */
+        /* --- ESTILOS EXCLUSIVOS DEL MANUAL --- */
         :root {
-            --bg-manual: #f0f4f8;
-            --primary-manual: #0056b3;
-            --accent-manual: #ff9900;
-            --text-manual: #1e293b;
+            --manual-bg: #f4f7f6;
+            --manual-accent: #007bff;
+            --manual-text: #333;
+            --phone-border: #2d2d2d;
         }
 
-        /* 🚨 AQUÍ ESTÁ EL CAMBIO IMPORTANTE 🚨 */
-        html, body {
-            background-color: var(--bg-manual);
-            color: var(--text-manual);
+        body {
+            background-color: var(--manual-bg);
+            color: var(--manual-text);
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
-            
-            /* Forzamos al navegador a permitir bajar (scroll) */
-            overflow-y: auto !important; 
-            height: auto !important;
-            position: static !important;
-        }
-        
-        body {
-            padding-bottom: 120px; /* Espacio para el botón flotante */
+            padding-bottom: 100px;
+            overflow-y: auto !important; /* Asegurar scroll */
         }
 
-        /* --- 1. HERO HEADER ANIMADO --- */
+        /* --- 1. HEADER HERO --- */
         .hero {
             background: linear-gradient(135deg, #0056b3 0%, #002a4d 100%);
             color: white;
-            padding: 5rem 2rem 8rem; /* Extra padding abajo para la curva */
+            padding: 4rem 1.5rem 6rem;
             text-align: center;
-            position: relative;
-            clip-path: ellipse(150% 100% at 50% 0%);
+            border-bottom-left-radius: 50px;
+            border-bottom-right-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,86,179,0.3);
         }
 
-        .hero h1 {
-            font-size: 3rem;
-            margin: 0;
-            animation: fadeInDown 1s ease-out;
-            letter-spacing: -1px;
-        }
+        .hero h1 { font-size: 2.5rem; margin: 0 0 10px 0; letter-spacing: -1px; }
+        .hero p { font-size: 1.1rem; opacity: 0.9; font-weight: 300; max-width: 600px; margin: 0 auto; }
 
-        .hero p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-top: 15px;
-            font-weight: 300;
-            animation: fadeInUp 1s ease-out 0.3s backwards;
-        }
-
-        /* --- 2. CONTENEDOR CENTRAL --- */
+        /* --- 2. CONTENEDOR PRINCIPAL --- */
         .container {
-            max-width: 900px;
-            margin: -60px auto 0; /* Subir sobre el header */
+            max-width: 800px;
+            margin: -50px auto 0;
             padding: 0 20px;
             position: relative;
             z-index: 10;
         }
 
-        /* --- 3. MOCKUP DE TELÉFONO (MARCO) --- */
-        .phone-mockup {
+        /* --- 3. TARJETAS DE SECCIÓN --- */
+        .section-card {
             background: white;
-            border-radius: 40px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-            border: 8px solid #333; /* El marco del celular */
-            padding: 20px;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.02);
+        }
+
+        .section-title {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 20px; color: #444; font-size: 1.4rem;
+        }
+        .section-number {
+            background: var(--manual-accent); color: white;
+            width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; font-weight: bold;
+        }
+
+        /* --- 4. SIMULACIONES DE UI (MOCKUPS) --- */
+        .mock-ui {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
             position: relative;
-            overflow: hidden;
-            margin-bottom: 4rem;
-            animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* La "Isla Dinámica" o Cámara */
-        .phone-notch {
-            position: absolute;
-            top: 0; left: 50%;
-            transform: translateX(-50%);
-            width: 120px; height: 25px;
-            background: #333;
-            border-bottom-left-radius: 15px;
-            border-bottom-right-radius: 15px;
-            z-index: 100;
+        .mock-label {
+            position: absolute; top: -10px; left: 15px;
+            background: #ffc107; color: #333;
+            font-size: 0.7rem; font-weight: bold;
+            padding: 2px 8px; border-radius: 10px;
+            text-transform: uppercase;
         }
 
-        /* --- 4. SISTEMA DE EXPLICACIÓN (PUNTOS Y TOOLTIPS) --- */
-        .explanation-grid {
+        /* UI: Barra Superior */
+        .mock-header {
+            display: flex; align-items: center; justify-content: space-between;
+            background: white; padding: 10px; border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* UI: Buscador */
+        .mock-search-bar {
+            display: flex; gap: 10px; background: white; padding: 10px;
+            border-radius: 10px; border: 1px solid #ddd;
+        }
+        .mock-input {
+            background: #eee; border: none; height: 10px; width: 60%;
+            border-radius: 5px; align-self: center;
+        }
+
+        /* UI: Chips */
+        .mock-chips { display: flex; gap: 8px; margin-top: 10px; }
+        .mock-chip {
+            padding: 6px 12px; border-radius: 20px; font-size: 0.8rem;
+            border: 1px solid #ddd; background: white; display: flex; align-items: center; gap: 5px;
+        }
+
+        /* UI: Menú Inferior */
+        .mock-nav {
+            display: flex; justify-content: space-around;
+            background: white; padding: 15px 0; border-radius: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+        }
+        .mock-nav-item {
+            text-align: center; color: #999; font-size: 0.7rem;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .mock-nav-item.active { color: var(--manual-accent); font-weight: bold; }
+
+        /* --- 5. EXPLICACIONES (GRID) --- */
+        .grid-explain {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }
 
-        @media(min-width: 768px) {
-            .explanation-grid { grid-template-columns: 1fr 1fr; }
+        .item-explain {
+            display: flex; gap: 15px; align-items: flex-start;
         }
-
-        .explainer-card {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            border-left: 5px solid var(--accent-manual);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
-        }
-        
-        .explainer-card:hover { transform: translateY(-3px); }
-
-        .explainer-card h4 { margin: 0 0 5px 0; color: var(--primary-manual); display: flex; align-items: center; gap: 8px;}
-        .explainer-card p { margin: 0; font-size: 0.95rem; color: #555; line-height: 1.5; }
-
-        /* Icono ilustrativo dentro de la tarjeta */
-        .card-icon-badge {
-            background: #eef2f6;
-            width: 30px; height: 30px;
-            border-radius: 50%;
+        .icon-badge {
+            min-width: 40px; height: 40px;
+            background: #eef2f6; color: var(--manual-accent);
+            border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            color: var(--primary-manual);
+            font-size: 1.2rem;
         }
 
-        /* --- 5. COMPONENTES VIVOS (SIMULADOS) --- */
+        /* --- 6. ANIMACIÓN "GESTO DE DEDO" (LONG PRESS) --- */
+        .gesture-demo {
+            height: 150px; background: #e0e0e0;
+            border-radius: 15px; position: relative;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+            background-image: radial-gradient(#ccc 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
         
-        /* Ajustes para que los componentes de tu app se vean bien en el manual */
-        .mock-nav-bar {
-            background: #1a1a1a;
-            border-radius: 20px;
-            padding: 10px;
-            display: flex;
-            justify-content: space-around;
+        .finger-touch {
+            width: 40px; height: 40px;
+            background: rgba(0, 123, 255, 0.3);
+            border-radius: 50%;
+            position: absolute;
+            animation: longPress 2s infinite;
+        }
+        .finger-touch::after {
+            content: ''; position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 20px; height: 20px;
+            background: rgba(0, 123, 255, 0.8);
+            border-radius: 50%;
+            border: 2px solid white;
         }
 
-        /* --- ANIMACIONES --- */
-        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        
-        /* Animación de "Click me" */
-        .click-hint {
-            animation: pulse 2s infinite;
+        @keyframes longPress {
+            0% { transform: scale(1); opacity: 0; }
+            20% { transform: scale(1); opacity: 1; }
+            80% { transform: scale(2.5); opacity: 0; } /* Efecto onda expansiva */
+            100% { transform: scale(2.5); opacity: 0; }
         }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,153,0, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255,153,0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,153,0, 0); } }
 
-        /* --- BOTÓN FLOTANTE --- */
-        .btn-volver-app {
-            position: fixed;
-            bottom: 30px; right: 30px;
-            background: var(--text-manual);
-            color: white;
-            text-decoration: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-weight: bold;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        /* --- 7. BOTÓN FLOTANTE VOLVER --- */
+        .btn-float-back {
+            position: fixed; bottom: 20px; right: 20px;
+            background: #1a1a1a; color: white;
+            padding: 12px 25px; border-radius: 50px;
+            text-decoration: none; font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
             display: flex; align-items: center; gap: 10px;
-            transition: transform 0.2s;
-            z-index: 999;
+            transition: transform 0.2s; z-index: 100;
         }
-        .btn-volver-app:hover { transform: scale(1.05); background:black; }
+        .btn-float-back:active { transform: scale(0.95); }
+
+        /* Simulación de tus iconos reales del mapa */
+        .sim-marker { 
+            width: 40px; height: 40px; margin: 0 auto 10px; display: flex; 
+            align-items: center; justify-content: center; 
+        }
 
     </style>
 </head>
 <body>
 
     <header class="hero">
-        <i class="ri-book-open-fill" style="font-size: 4rem; opacity: 0.3; margin-bottom: 10px; display:block;"></i>
-        <h1>Manual Maestro</h1>
-        <p>Domina Rutas Koox paso a paso. Toca, explora y aprende.</p>
+        <i class="ri-book-read-line" style="font-size: 3rem; margin-bottom: 10px; opacity:0.8;"></i>
+        <h1>Manual de Usuario</h1>
+        <p>Aprende a usar Rutas Koox como un experto, con o sin internet.</p>
     </header>
 
     <div class="container">
 
-        <h2 style="text-align:center; margin-bottom: 2rem; color: #444;">1. La Barra Superior (Tus Herramientas)</h2>
-        
-        <div class="phone-mockup">
-            <div class="phone-notch"></div>
+        <div class="section-card">
+            <h2 class="section-title"><span class="section-number">1</span> La Pantalla Principal</h2>
+            <p>Todo lo que necesitas está a un toque de distancia. Aquí te explicamos los controles superiores.</p>
             
-            <div style="background: white; padding: 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                
-                <button class="icon-btn-simple click-hint" style="background:#f0f0f0; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer;">
-                    <i class="ri-arrow-down-s-line"></i>
-                </button>
-                
-                <div style="flex-grow:1; text-align:center; font-weight:bold;">Rutas Koox</div>
-                
-                <div class="header-buttons" style="display:flex; gap:10px;">
-                    <button class="icon-btn click-hint" style="background:#f0f0f0; border:none; width:40px; height:40px; border-radius:50%;">
-                        <i class="ri-settings-3-line"></i>
-                    </button>
-                    <button class="icon-btn click-hint" style="background:#f0f0f0; border:none; width:40px; height:40px; border-radius:50%;">
-                        <i class="ri-information-line"></i>
-                    </button>
+            <div class="mock-ui">
+                <span class="mock-label">Simulación</span>
+                <div class="mock-header">
+                    <div style="background:#f0f0f0; width:35px; height:35px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#333;">
+                        <i class="ri-arrow-down-s-line"></i>
+                    </div>
+                    
+                    <div style="font-weight:bold; color:#0056b3;">Rutas Koox</div>
+                    
+                    <div style="display:flex; gap:8px;">
+                        <div style="background:#f0f0f0; width:35px; height:35px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#333;">
+                            <i class="ri-settings-3-line"></i>
+                        </div>
+                        <div style="background:#f0f0f0; width:35px; height:35px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#333;">
+                            <i class="ri-information-line"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="explanation-grid">
-                <div class="explainer-card">
-                    <h4><span class="card-icon-badge"><i class="ri-arrow-down-s-line"></i></span> Minimizar</h4>
-                    <p>Si el panel te estorba para ver el mapa, toca esta flechita. El panel se esconderá abajo.</p>
+            <div class="grid-explain">
+                <div class="item-explain">
+                    <div class="icon-badge"><i class="ri-arrow-down-s-line"></i></div>
+                    <div><strong>Minimizar Panel:</strong> Oculta los controles para ver el mapa completo. Toca el mapa para reabrirlos.</div>
                 </div>
-                <div class="explainer-card">
-                    <h4><span class="card-icon-badge"><i class="ri-settings-3-line"></i></span> Ajustes</h4>
-                    <p>Aquí activas el <strong>Modo Oscuro</strong> (para la noche) o aumentas el tamaño de la letra.</p>
+                <div class="item-explain">
+                    <div class="icon-badge"><i class="ri-settings-3-line"></i></div>
+                    <div><strong>Ajustes:</strong> Activa el "Modo Oscuro" para la noche o aumenta el tamaño de la letra.</div>
                 </div>
-                <div class="explainer-card">
-                    <h4><span class="card-icon-badge"><i class="ri-information-line"></i></span> Info & Tarifas</h4>
-                    <p>Consulta los precios oficiales del pasaje (Estudiantes, Adultos) y reglas de transbordo.</p>
-                </div>
-                <div class="explainer-card">
-                    <h4><span class="card-icon-badge"><i class="ri-home-smile-line"></i></span> Botón Flotante</h4>
-                    <p>Verás una pastilla arriba que dice "Rutas Koox". Tócala para ver la información de "Nosotros".</p>
+                <div class="item-explain">
+                    <div class="icon-badge"><i class="ri-information-line"></i></div>
+                    <div><strong>Info & Tarifas:</strong> Consulta precios oficiales y reglas de transbordo.</div>
                 </div>
             </div>
         </div>
 
+        <div class="section-card" style="border-left: 5px solid #28a745;">
+            <h2 class="section-title"><span class="section-number" style="background:#28a745;">2</span> Buscador y Modo Offline</h2>
+            <p><strong>¡Novedad!</strong> Rutas Koox ahora es más inteligente cuando te quedas sin datos.</p>
 
-        <h2 style="text-align:center; margin-bottom: 2rem; color: #444; margin-top: 4rem;">2. Modos de Uso (Menú Inferior)</h2>
-
-        <div class="phone-mockup" style="background: #1a1a1a; color: white;">
-            <div class="phone-notch" style="background: #444;"></div>
-            
-            <p style="text-align:center; opacity:0.6; margin-bottom:20px; margin-top: 20px;">Así se ve al fondo de tu pantalla:</p>
-
-            <nav class="mock-nav-bar">
-                <button style="background:none; border:none; color:#007bff; display:flex; flex-direction:column; align-items:center;">
-                    <i class="ri-map-pin-user-fill" style="font-size:1.5rem;"></i>
-                    <span style="font-size:0.7rem;">Viaje</span>
-                </button>
-                <button style="background:none; border:none; color:gray; display:flex; flex-direction:column; align-items:center;">
-                    <i class="ri-compass-3-line" style="font-size:1.5rem;"></i>
-                    <span style="font-size:0.7rem;">Explorar</span>
-                </button>
-                <button style="background:none; border:none; color:gray; display:flex; flex-direction:column; align-items:center;">
-                    <i class="ri-wallet-3-line" style="font-size:1.5rem;"></i>
-                    <span style="font-size:0.7rem;">Saldo</span>
-                </button>
-                <button style="background:none; border:none; color:gray; display:flex; flex-direction:column; align-items:center;">
-                    <i class="ri-alarm-warning-line" style="font-size:1.5rem;"></i>
-                    <span style="font-size:0.7rem;">Reportar</span>
-                </button>
-            </nav>
-
-            <div class="explanation-grid" style="margin-top: 20px;">
-                <div class="explainer-card" style="background: #333; border-left-color: #007bff; color:white;">
-                    <h4 style="color:#007bff;"><i class="ri-map-pin-user-fill"></i> Modo Viaje</h4>
-                    <p style="color:#ccc;">El modo principal. Úsalo para decir "Estoy aquí y quiero ir allá". La app te dirá qué camión tomar.</p>
+            <div class="mock-ui">
+                <span class="mock-label">Buscador Inteligente</span>
+                <div class="mock-search-bar">
+                    <div style="flex-grow:1; color:#777; font-size:0.9rem;">
+                        <i class="ri-search-2-line" style="margin-right:5px;"></i> ¿A dónde vas?
+                    </div>
+                    <div style="background:var(--manual-accent); color:white; width:30px; height:30px; border-radius:5px; display:flex; align-items:center; justify-content:center;">
+                        <i class="ri-arrow-right-line"></i>
+                    </div>
                 </div>
-                <div class="explainer-card" style="background: #333; border-left-color: #ccc; color:white;">
-                    <h4 style="color:white;"><i class="ri-compass-3-line"></i> Modo Explorar</h4>
-                    <p style="color:#ccc;">Ideal si no tienes un destino fijo. Puedes ver la ruta completa de un camión (ej. Koox 1) en el mapa.</p>
-                </div>
-                <div class="explainer-card" style="background: #333; border-left-color: #ffc107; color:white;">
-                    <h4 style="color:#ffc107;"><i class="ri-alarm-warning-line"></i> Reportar</h4>
-                    <p style="color:#ccc;">¿El camión no pasó? ¿Va muy lleno? Avísanos aquí para alertar a otros usuarios.</p>
-                </div>
-                <div class="explainer-card" style="background: #333; border-left-color: #ccc; color:white;">
-                    <h4 style="color:white;"><i class="ri-wallet-3-line"></i> Saldo y Recargas</h4>
-                    <p style="color:#ccc;">(Próximamente) Podrás ver tu saldo de tarjeta de transporte aquí.</p>
-                </div>
-            </div>
-        </div>
-
-
-        <h2 style="text-align:center; margin-bottom: 2rem; color: #444; margin-top: 4rem;">3. Cómo Buscar (Botones Especiales)</h2>
-
-        <div class="phone-mockup" style="background: #f8f9fa;">
-            <div class="phone-notch"></div>
-
-            <div style="background: white; border-radius: 15px; padding: 20px; margin-top: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
                 
-                <h5 style="margin:0 0 10px 0; color:#555;">Panel de Viaje</h5>
-
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <div style="flex-grow:1; background:#eee; padding:10px; border-radius:8px; color:#555;">¿A dónde vas?</div>
-                    <button class="click-hint" style="background:#0056b3; color:white; border:none; width:40px; border-radius:8px; cursor:pointer;">
-                        <i class="ri-search-2-line"></i>
-                    </button>
-                </div>
-
-                <div style="display:flex; gap:5px; overflow-x:auto;">
-                    <button style="background:white; border:1px solid #ccc; padding:5px 10px; border-radius:20px; font-size:0.8rem;">🏥 Salud</button>
-                    <button style="background:white; border:1px solid #ccc; padding:5px 10px; border-radius:20px; font-size:0.8rem;">🏫 Escuelas</button>
-                    <button style="background:linear-gradient(45deg, #ff9900, #ff5e00); color:white; border:none; padding:5px 10px; border-radius:20px; font-size:0.8rem;" class="click-hint">📷 Turistear</button>
+                <div class="mock-chips">
+                    <div class="mock-chip"><i class="ri-hospital-line"></i> Salud</div>
+                    <div class="mock-chip"><i class="ri-school-line"></i> Escuelas</div>
+                    <div class="mock-chip" style="background:#fff3cd; color:#856404; border-color:#ffeeba;"><i class="ri-camera-lens-line"></i> Turismo</div>
                 </div>
             </div>
 
-            <div class="explanation-grid">
-                <div class="explainer-card">
-                    <h4><span class="card-icon-badge"><i class="ri-search-2-line"></i></span> La Lupa</h4>
-                    <p>Esta es tu mejor amiga. Tócala para escribir el nombre de cualquier lugar (ej. "Catedral", "Walmart"). La app lo buscará en internet y te trazará la ruta.</p>
+            <div class="grid-explain">
+                <div class="item-explain">
+                    <div class="icon-badge" style="background:#e8f5e9; color:#28a745;"><i class="ri-wifi-line"></i></div>
+                    <div>
+                        <strong>Con Internet:</strong>
+                        <p style="margin:5px 0 0; font-size:0.9rem; color:#666;">Escribe cualquier lugar (ej. "Walmart", "Catedral"). La app buscará la dirección exacta en internet.</p>
+                    </div>
                 </div>
-                <div class="explainer-card">
-                    <h4><span class="card-icon-badge"><i class="ri-camera-lens-line"></i></span> Modo Turista</h4>
-                    <p>¿Visitas Campeche? Toca el botón naranja "Turistear". Te mostraremos los lugares más bonitos y cómo llegar en camión.</p>
+                <div class="item-explain">
+                    <div class="icon-badge" style="background:#ffebee; color:#d32f2f;"><i class="ri-wifi-off-line"></i></div>
+                    <div>
+                        <strong>Sin Internet (Offline):</strong>
+                        <p style="margin:5px 0 0; font-size:0.9rem; color:#666;">
+                            El buscador cambia a <strong>Modo Local</strong>. Solo encontrará paraderos por nombre o calle (ej. "Calle 53", "Mercado").
+                        </p>
+                    </div>
                 </div>
-                <div class="explainer-card">
-                    <h4><span class="card-icon-badge"><i class="ri-map-pin-user-fill"></i></span> GPS Automático</h4>
-                    <p>No necesitas escribir dónde estás. Si tienes el GPS encendido, la app detectará tu "Inicio" automáticamente.</p>
+            </div>
+
+            <div style="margin-top:20px; background:#e3f2fd; padding:15px; border-radius:10px; display:flex; gap:15px; align-items:center;">
+                <i class="ri-lightbulb-flash-line" style="font-size:2rem; color:#0056b3;"></i>
+                <div>
+                    <strong>Tip Pro: Fijar Destino Manual</strong>
+                    <p style="margin:5px 0 0; font-size:0.9rem;">Si no tienes internet y no sabes el nombre de la calle, usa el mapa:</p>
+                </div>
+            </div>
+
+            <div class="mock-ui" style="text-align:center;">
+                <span class="mock-label">Gesto en el Mapa</span>
+                <div class="gesture-demo">
+                    <div class="finger-touch"></div>
+                    <div style="position:absolute; bottom:10px; font-weight:bold; color:#555;">Mantén presionado 2 segundos</div>
+                </div>
+                <p style="font-size:0.9rem; color:#666; margin-top:10px;">
+                    Al mantener presionado cualquier punto del mapa, aparecerá un pin y podrás elegir <strong>"Ir aquí"</strong>.
+                </p>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h2 class="section-title"><span class="section-number">3</span> Modos de Navegación</h2>
+            <p>La barra inferior cambia según lo que necesites hacer.</p>
+
+            <div class="mock-ui">
+                <div class="mock-nav">
+                    <div class="mock-nav-item active">
+                        <i class="ri-map-pin-user-fill" style="font-size:1.5rem;"></i>
+                        <span>Viaje</span>
+                    </div>
+                    <div class="mock-nav-item">
+                        <i class="ri-compass-3-line" style="font-size:1.5rem;"></i>
+                        <span>Explorar</span>
+                    </div>
+                    <div class="mock-nav-item">
+                        <i class="ri-wallet-3-line" style="font-size:1.5rem;"></i>
+                        <span>Saldo</span>
+                    </div>
+                    <div class="mock-nav-item">
+                        <i class="ri-alarm-warning-line" style="font-size:1.5rem;"></i>
+                        <span>Reportar</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-explain">
+                <div class="item-explain">
+                    <div class="icon-badge"><i class="ri-map-pin-user-fill"></i></div>
+                    <div><strong>Modo Viaje:</strong> Tu GPS te guía paso a paso. Te avisa cuándo bajar.</div>
+                </div>
+                <div class="item-explain">
+                    <div class="icon-badge"><i class="ri-compass-3-line"></i></div>
+                    <div><strong>Modo Explorar:</strong> ¿Solo curioseando? Ve la ruta completa de un camión (ej. "Koox 1") pintada en el mapa.</div>
+                </div>
+                <div class="item-explain">
+                    <div class="icon-badge"><i class="ri-alarm-warning-line"></i></div>
+                    <div><strong>Reportar:</strong> Ayuda a la comunidad. Reporta si el camión va lleno, no pasó o hubo un accidente.</div>
                 </div>
             </div>
         </div>
 
+        <div class="section-card">
+            <h2 class="section-title"><span class="section-number">4</span> Leyenda del Mapa</h2>
+            <p>Aprende a identificar los marcadores en el mapa.</p>
 
-        <h2 style="text-align:center; margin-bottom: 2rem; color: #444; margin-top: 4rem;">4. Entendiendo el Mapa</h2>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-            
-            <div class="explainer-card" style="text-align:center;">
-                <i class="ri-bus-fill" style="font-size: 3rem; color: #0056b3; margin-bottom: 10px; display:block;"></i>
-                <strong>Paradero (Azul)</strong>
-                <p>Aquí es donde el camión se detiene. Debes caminar hacia este punto para subir.</p>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                
+                <div style="text-align:center; padding:15px; background:#f9f9f9; border-radius:10px;">
+                    <div class="sim-marker">
+                        <div style="background:white; border:2px solid #0d47a1; border-radius:8px; width:24px; height:24px; color:#0d47a1; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
+                            <i class="ri-bus-fill"></i>
+                        </div>
+                    </div>
+                    <strong>Paradero</strong>
+                    <div style="font-size:0.8rem; color:#666;">Donde subes al camión.</div>
+                </div>
+
+                <div style="text-align:center; padding:15px; background:#f9f9f9; border-radius:10px;">
+                    <div class="sim-marker">
+                        <div style="background:linear-gradient(135deg, #ff9800, #f57c00); border:2px solid white; border-radius:50%; width:28px; height:28px; color:white; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 6px rgba(0,0,0,0.2);">
+                            <i class="ri-arrow-left-right-line"></i>
+                        </div>
+                    </div>
+                    <strong>Transbordo</strong>
+                    <div style="font-size:0.8rem; color:#666;">Punto de cambio de ruta.</div>
+                </div>
+
+                <div style="text-align:center; padding:15px; background:#f9f9f9; border-radius:10px;">
+                    <div class="sim-marker">
+                        <i class="ri-map-pin-fill" style="color:#d32f2f; font-size:32px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.2));"></i>
+                    </div>
+                    <strong>Destino</strong>
+                    <div style="font-size:0.8rem; color:#666;">Tu meta final.</div>
+                </div>
+
+                <div style="text-align:center; padding:15px; background:#f9f9f9; border-radius:10px;">
+                    <div class="sim-marker">
+                        <div style="background:#2196f3; border:3px solid white; border-radius:50%; width:16px; height:16px; box-shadow:0 0 0 4px rgba(33,150,243,0.2);"></div>
+                    </div>
+                    <strong>Tú</strong>
+                    <div style="font-size:0.8rem; color:#666;">Tu ubicación GPS.</div>
+                </div>
+
             </div>
-
-            <div class="explainer-card" style="text-align:center;">
-                <i class="ri-exchange-dollar-line" style="font-size: 3rem; color: #ff9900; margin-bottom: 10px; display:block;"></i>
-                <strong>Transbordo (Naranja)</strong>
-                <p>¡Atención! Aquí debes bajar de un camión y esperar al siguiente.</p>
-            </div>
-
-            <div class="explainer-card" style="text-align:center;">
-                <i class="ri-user-location-fill" style="font-size: 3rem; color: #28a745; margin-bottom: 10px; display:block;"></i>
-                <strong>Tú (Verde)</strong>
-                <p>Este eres tú en tiempo real. La flecha indica hacia dónde estás mirando.</p>
-            </div>
-
-             <div class="explainer-card" style="text-align:center;">
-                <i class="ri-map-pin-fill" style="font-size: 3rem; color: #d63384; margin-bottom: 10px; display:block;"></i>
-                <strong>Destino (Rosa)</strong>
-                <p>Tu meta final. La app te avisará cuando estés cerca de llegar.</p>
-            </div>
-
         </div>
 
     </div>
 
-    <footer style="text-align:center; margin-top:5rem; opacity:0.6; padding-bottom: 20px;">
-        <small>© 2026 Rutas Koox - Hecho con ❤️ para Campeche</small>
-    </footer>
-
-    <a href="index.html" class="btn-volver-app">
+    <a href="index.html" class="btn-float-back">
         <i class="ri-arrow-left-line"></i> Regresar al Mapa
     </a>
 

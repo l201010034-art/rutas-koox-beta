@@ -56,6 +56,13 @@ function corregirErroresComunes(query) {
         "uac": "Monumento Universidad Autónoma de Campeche",
         "universidad autonoma de campeche": "monumento Universidad Autónoma de Campeche",
         "universidad autónoma de campeche": "Monumento Universidad Autónoma de Campeche",
+        "tec lerma": "Tecnológico de Lerma",
+        "tec campeche": "Tecnológico de Campeche",
+        "prevo": "Escuela Secundaria Técnica No. 1",
+        "PREVO": "Escuela Secundaria Técnica No. 1",
+        "SUR": "Terminal de Segunda Clase SUR",
+        "sur": "Terminal de Segunda Clase SUR",
+        "papa luchon": "El Angel Maya",
 
     };
 
