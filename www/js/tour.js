@@ -30,13 +30,25 @@ export function iniciarTour() {
             },
             // PASO 2: El Nuevo Buscador
             { 
-                element: '.choices__inner', // Apuntamos al contenedor de Choices.js
+                element: '.choices__inner', 
                 popover: { 
                     title: '¿A dónde vamos?', 
-                    description: 'Escribe cualquier lugar: "Walmart", "Mercado", "Calle 10". Buscaremos en internet por ti.',
+                    description: 'Escribe cualquier lugar aquí. Verás cómo aparecen opciones locales y de internet automáticamente.',
                     side: "bottom", 
                     align: 'center' 
-                } 
+                },
+                // 🔥 AL ENTRAR: Abrimos el menú a la fuerza
+                onHighlightStarted: () => {
+                    if (window.choicesDestino) {
+                        window.choicesDestino.showDropdown(); 
+                    }
+                },
+                // 🔥 AL SALIR: Lo cerramos para que no estorbe en el siguiente paso
+                onDeselected: () => {
+                    if (window.choicesDestino) {
+                        window.choicesDestino.hideDropdown();
+                    }
+                }
             },
             // PASO 3: Tu Ubicación
             { 

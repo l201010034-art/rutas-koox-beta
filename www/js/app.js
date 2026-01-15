@@ -679,6 +679,7 @@ function initChoicesSelect() {
         noResultsText: 'Escribe para buscar...',
         loadingText: 'Cargando...',
     });
+    window.choicesDestino = choicesDestino;
 
     let ultimoTextoBuscado = "";
     

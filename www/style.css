@@ -779,3 +779,32 @@ body.dark-mode #btnIniciarRecorrido {
     background-color: #4dabf7;
     color: #121212;
 }
+
+/* Estilo forzado para el botón del tutorial */
+#btnIniciarRecorrido {
+    background-color: #007bff !important; /* Azul brillante */
+    color: #ffffff !important; /* Letras blancas */
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    width: 100%;
+    margin-top: 15px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: background 0.3s;
+}
+
+#btnIniciarRecorrido:hover {
+    background-color: #0056b3 !important;
+}
+
+/* Icono dentro del botón */
+#btnIniciarRecorrido i {
+    font-size: 1.2rem;
+}
