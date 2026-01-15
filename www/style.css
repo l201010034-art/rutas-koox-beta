@@ -853,3 +853,67 @@ body.dark-mode .marca-flotante-top {
     background-color: #0056b3 !important;
     transform: scale(1.05);
 }
+
+/* =========================================
+   SOLUCIÓN FINAL: TOUR TRANSPARENTE INTERACTIVO
+   ========================================= */
+
+/* 1. HACE QUE EL FONDO INVISIBLE NO BLOQUEE CLICS */
+.driver-overlay, 
+.driver-overlay path {
+    pointer-events: none !important; /* La magia: los clics atraviesan el fondo */
+}
+
+/* 2. PERO LA BURBUJA DEL TOUR SÍ DEBE RECIBIR CLICS (Siguiente/Atrás) */
+.driver-popover {
+    z-index: 2147483647 !important; /* Máxima altura posible */
+    pointer-events: auto !important; /* Reactiva los clics en la burbuja */
+}
+
+/* 3. ASEGURAR QUE EL PANEL RESALTADO TAMBIÉN RECIBA CLICS */
+.driver-active-element,
+.driver-highlighted-element {
+    z-index: 2147483646 !important; 
+    pointer-events: auto !important;
+}
+/* =========================================
+   SOLUCIÓN FINAL: DESBLOQUEO TOTAL
+   ========================================= */
+
+/* 1. SEGURO DE VIDA: Evita que la capa invisible bloquee la app */
+/* Driver.js v1 usa este ID o clase para el fondo */
+#driver-page-overlay,
+.driver-overlay {
+    pointer-events: none !important; /* ¡LA CLAVE! Los clics atraviesan el fondo */
+    opacity: 0 !important;           /* Asegura invisibilidad */
+}
+
+/* 2. Reactivar clics SOLO en la burbuja de texto (botones Siguiente/Atrás) */
+.driver-popover {
+    pointer-events: auto !important; 
+    z-index: 999999999 !important;   /* Siempre encima de todo */
+}
+
+/* =========================================
+   CORRECCIÓN FINAL: FIJAR POSICIÓN DEL MENÚ
+   ========================================= */
+
+/* Esto evita que el menú desaparezca o salte al ser resaltado */
+.bottom-nav.driver-active-element {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 2147483647 !important; /* Máxima prioridad */
+}
+
+/* Ajuste del recuadro blanco para el menú */
+.bottom-nav.driver-active-element::after {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    /* Un borde sutil para que se vea bonito */
+    box-shadow: inset 0 0 0 2px var(--primary-color);
+    pointer-events: none;
+}
