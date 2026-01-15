@@ -1,87 +1,70 @@
-// Función para iniciar el Tour de Bienvenida
-function iniciarTour() {
+// js/tour.js
+
+// Exportamos la función para poder llamarla desde app.js o settings.js
+export function iniciarTour() {
+    
+    // Si la librería driver.js no cargó, salimos para evitar errores
+    if (!window.driver || !window.driver.js) {
+        console.warn("Driver.js no está cargado.");
+        return;
+    }
+
     const driver = window.driver.js.driver;
 
     const tour = driver({
         showProgress: true,
         animate: true,
-        doneBtnText: '¡Listo, a viajar!',
+        doneBtnText: '¡A explorar! 🚀',
         nextBtnText: 'Siguiente',
         prevBtnText: 'Atrás',
         steps: [
-            // PASO 1: Bienvenida General
+            // PASO 1: Bienvenida
             { 
                 element: '#map', 
                 popover: { 
                     title: '¡Bienvenido a Rutas Koox! 🚍', 
-                    description: 'Te ayudamos a moverte por Campeche fácil y rápido. Hagamos un recorrido rápido.',
+                    description: 'Tu copiloto para moverte por Campeche. Ahora más rápido e inteligente.',
                     side: "center", 
                     align: 'center' 
                 } 
             },
-            // PASO 2: La Marca (Arriba)
+            // PASO 2: El Nuevo Buscador
             { 
-                element: '.marca-flotante-top', 
+                element: '.choices__inner', // Apuntamos al contenedor de Choices.js
                 popover: { 
-                    title: 'Conócenos', 
-                    description: 'Aquí puedes saber más sobre el proyecto y el equipo de desarrollo.',
+                    title: '¿A dónde vamos?', 
+                    description: 'Escribe cualquier lugar: "Walmart", "Mercado", "Calle 10". Buscaremos en internet por ti.',
                     side: "bottom", 
                     align: 'center' 
                 } 
             },
-            // PASO 3: El Panel Principal (Aseguramos que esté visible)
+            // PASO 3: Tu Ubicación
             { 
-                element: '#panel-control', 
+                element: '#inputInicio', 
                 popover: { 
-                    title: 'Tu Centro de Mando', 
-                    description: 'Aquí es donde sucede la magia. Puedes buscar rutas y ver información.',
-                    side: "top", 
-                    align: 'center' 
-                },
-                onHighlightStarted: () => {
-                    // TRUCO: Si el panel está minimizado u oculto, lo mostramos
-                    const panel = document.getElementById('panel-control');
-                    panel.classList.remove('oculto');
-                    // Si tienes una clase para "minimizado", quítala aquí también
-                }
-            },
-            // PASO 4: Origen y Destino
-            { 
-                element: '#controles-viaje', 
-                popover: { 
-                    title: 'Planifica tu Viaje', 
-                    description: 'La app detecta dónde estás. Solo elige tu destino en la lista o búscalo en el mapa.',
+                    title: 'Tu Punto de Partida', 
+                    description: 'Detectamos tu GPS automáticamente. Si falla, toca aquí para elegir "Inicio Manual".',
                     side: "top", 
                     align: 'center' 
                 } 
             },
-            // PASO 5: Modo Turista
-            { 
-                element: '#btnModoTurista', 
-                popover: { 
-                    title: '¿Vienes de visita?', 
-                    description: 'Activa el modo Turista para ver sitios de interés y rutas recomendadas.',
-                    side: "top", 
-                    align: 'start' 
-                } 
-            },
-            // PASO 6: Ajustes y Tarifas
-            { 
-                element: '.header-buttons', 
-                popover: { 
-                    title: 'Personalízalo', 
-                    description: 'Activa el Modo Oscuro, ve las tarifas oficiales o ajusta el tamaño de letra aquí.',
-                    side: "left", 
-                    align: 'center' 
-                } 
-            },
-            // PASO 7: Menú Inferior
+            // PASO 4: Barra de Navegación
             { 
                 element: '.bottom-nav', 
                 popover: { 
-                    title: 'Navegación Rápida', 
-                    description: 'Cambia entre planear viaje, explorar rutas libres o reportar problemas.',
+                    title: 'Modos de Viaje', 
+                    description: 'Usa "Viaje" para ir de A a B, o "Explorar" para ver rutas completas en el mapa.',
                     side: "top", 
+                    align: 'center' 
+                } 
+            },
+            // PASO 5: Ajustes
+            { 
+                element: '#btnAjustes', 
+                popover: { 
+                    title: 'Personalización', 
+                    description: 'Activa el Modo Oscuro, letra grande o vuelve a ver este tutorial aquí.',
+                    side: "left", 
                     align: 'center' 
                 } 
             }
@@ -91,17 +74,15 @@ function iniciarTour() {
     tour.drive();
 }
 
-// Lógica para ejecutarlo SOLO la primera vez
-window.addEventListener('load', function() {
-    // Esperamos un poco a que desaparezca el Splash Screen (2.5 segundos)
+// Función para checar si es la primera vez (Auto-arranque)
+export function checkAndStartTour() {
+    // Esperamos 1.5 segundos para asegurar que el mapa y los elementos cargaron
     setTimeout(() => {
-        // Verificamos si ya vio el tour
-        const tourVisto = localStorage.getItem('tour_visto_v1');
+        const tourVisto = localStorage.getItem('tour_visto_v2'); // Cambiamos a v2 para que salga de nuevo a todos
         
         if (!tourVisto) {
             iniciarTour();
-            // Marcamos que ya lo vio para que no salga siempre
-            localStorage.setItem('tour_visto_v1', 'true');
+            localStorage.setItem('tour_visto_v2', 'true');
         }
-    }, 2500); 
-});
+    }, 1500);
+}

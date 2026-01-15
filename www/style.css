@@ -752,3 +752,30 @@ body.dark-mode .chip:active { background-color: #444; }
 .oculto {
     display: none !important;
 }
+
+/* Corrección para botón de recorrido en ajustes */
+#btnIniciarRecorrido {
+    background-color: #0056b3; /* Azul visible */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    width: 100%;
+    margin-top: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;       /* Para alinear icono y texto si tiene */
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#btnIniciarRecorrido:hover {
+    background-color: #004494;
+}
+
+/* En modo oscuro, podemos cambiar el color si quieres */
+body.dark-mode #btnIniciarRecorrido {
+    background-color: #4dabf7;
+    color: #121212;
+}

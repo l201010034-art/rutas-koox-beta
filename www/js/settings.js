@@ -85,6 +85,16 @@ export function initSettings() {
         });
     }
 
+    if (btnIniciarRecorrido) {
+        btnIniciarRecorrido.addEventListener('click', () => {
+            // 1. Cerramos la ventana de ajustes PRIMERO
+            if (settingsModal) settingsModal.classList.add('oculto');
+            
+            // 2. Iniciamos el tour
+            iniciarTour();
+        });
+    }
+
     // Listeners de los Switches (si existen en el HTML)
     if(checkDarkMode) checkDarkMode.addEventListener('change', (e) => guardarAjuste('darkMode', e.target.checked));
     if(checkLargeText) checkLargeText.addEventListener('change', (e) => guardarAjuste('largeText', e.target.checked));

@@ -18,6 +18,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Dialog } from '@capacitor/dialog';
 import { buscarLugarEnNominatim, categoriasRapidas, sitiosTuristicos } from './searchService.js';
+import { iniciarTour, checkAndStartTour } from './tour.js';
 async function mantenerPantallaEncendida() {
     try {
         await KeepAwake.keepAwake();
@@ -551,6 +552,7 @@ if (btnBuscarLugar) {
     } catch (error) {
         console.error("Error cargando o procesando los datos GeoJSON:", error);
     }
+    checkAndStartTour();
 }); // <-- FIN DEL DOMCONTENTLOADED
 
 // --- 5. LÓGICA DE LA APP (EVENT HANDLERS) ---
