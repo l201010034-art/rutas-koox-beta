@@ -161,3 +161,32 @@ export const categoriasRapidas = [
     { label: "Farmacias", query: "Farmacia", icono: "ri-capsule-line" },
     { label: "Bancos", query: "Banco", icono: "ri-bank-line" }
 ];
+
+/**
+ * 4. BÚSQUEDA OFFLINE (Local)
+ * Filtra el array de paraderos que ya tienes en memoria.
+ */
+export function buscarEnDatosLocales(query, listaParaderos) {
+    if (!listaParaderos || listaParaderos.length === 0) return [];
+
+    const texto = query.toLowerCase().trim();
+    
+    // Filtramos por nombre, calle o colonia
+    const resultados = listaParaderos.filter(p => {
+        const props = p.properties;
+        const nombre = (props.nombre || "").toLowerCase();
+        const calle = (props.NOMVIAL || "").toLowerCase();
+        const colonia = (props.NOM_COL || "").toLowerCase();
+
+        return nombre.includes(texto) || calle.includes(texto) || colonia.includes(texto);
+    });
+
+    // Limitamos a 15 para no saturar la lista
+    return resultados.slice(0, 15).map(p => ({
+        nombre: p.properties.nombre,
+        lat: p.geometry.coordinates[1],
+        lng: p.geometry.coordinates[0],
+        id: p.properties.originalIndex, // Importante para identificarlo luego
+        tipo: 'local' // Marcador para saber que vino de la memoria
+    }));
+}

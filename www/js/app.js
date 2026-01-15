@@ -17,7 +17,8 @@ import { KeepAwake } from '@capacitor-community/keep-awake'; // CORRECTO
 import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Dialog } from '@capacitor/dialog';
-import { buscarLugarEnNominatim, categoriasRapidas, sitiosTuristicos } from './searchService.js';
+import { buscarLugarEnNominatim, categoriasRapidas, sitiosTuristicos,buscarEnDatosLocales} from './searchService.js';
+
 import { iniciarTour, checkAndStartTour } from './tour.js';
 async function mantenerPantallaEncendida() {
     try {
@@ -688,89 +689,125 @@ function initChoicesSelect() {
 
  // ... dentro de initChoicesSelect ...
 
-    // 2. EVENTO DE BÚSQUEDA (Con Loader y Alerta de Vacío)
-    const buscadorInternet = debounce(async (event) => {
-        const texto = event.detail.value;
-        
-        if (!texto || texto.length < 3) return;
-        if (texto === ultimoTextoBuscado) return;
+// 2. EVENTO DE BÚSQUEDA (Con Loader, Alerta y MODO OFFLINE)
+const buscadorInternet = debounce(async (event) => {
+    const texto = event.detail.value;
+    
+    if (!texto || texto.length < 2) return; // Bajamos a 2 letras para búsqueda local
+    
+    // ⬇️ NUEVO: Detección de Internet
+    const isOnline = navigator.onLine; 
+    
+    // Loader visual
+    const loaderEl = document.getElementById('loader-busqueda');
+    if (loaderEl) loaderEl.classList.remove('oculto');
 
-        console.log(`🔎 Buscando '${texto}' en internet...`);
+    try {
+        let nuevasOpciones = [];
 
-        try {
-            // A. Activar Loader
-            if (loaderEl) loaderEl.classList.remove('oculto');
-
+        if (isOnline) {
+            // --- MODO ONLINE (Tu código actual) ---
+            console.log(`🌐 Buscando online: '${texto}'`);
             const resultados = await buscarLugarEnNominatim(texto);
             
-            // Variable para las nuevas opciones
-            let nuevasOpciones = [];
-            
-            // --- B. MANEJO DE RESULTADOS ---
             if (resultados && resultados.length > 0) {
-                // SÍ HAY RESULTADOS
                 nuevasOpciones = resultados.map((lugar, index) => ({
                     value: `ext_${lugar.lat}_${lugar.lng}_${index}`, 
                     label: `📍 ${lugar.nombre}`, 
                     customProperties: { fullData: lugar }
                 }));
-            } else {
-                // NO HAY RESULTADOS (ALERTA VISUAL)
-                // Creamos una opción deshabilitada que sirva de mensaje
-                nuevasOpciones = [{
-                    value: 'no_found',
-                    label: `🚫 No encontramos nada para "${texto}"`,
-                    disabled: true, // No se puede seleccionar
-                    customProperties: { tipo: 'aviso' }
-                }];
-                console.log("Búsqueda vacía, mostrando alerta.");
             }
 
-            // --- C. ACTUALIZAR UI (Común para ambos casos) ---
-            const textoUsuario = choicesDestino.input.element.value;
-            ultimoTextoBuscado = textoUsuario;
-
-            // Reemplazamos la lista
-            choicesDestino.setChoices(nuevasOpciones, 'value', 'label', true); 
-
-            // Restauramos texto
-            if (textoUsuario) {
-                setTimeout(() => {
-                    const input = choicesDestino.input.element;
-                    input.value = textoUsuario;
-                    input.focus();
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                }, 50); 
-            }
-
-        } catch (e) {
-            console.error("Error buscando:", e);
-            // En caso de error técnico, también avisamos
-            choicesDestino.setChoices([{
-                value: 'error',
-                label: '⚠️ Error de conexión. Intenta de nuevo.',
-                disabled: true
-            }], 'value', 'label', true);
+        } else {
+            // --- ⬇️ MODO OFFLINE (Nuevo) ---
+            console.log(`📴 Buscando offline en paraderos: '${texto}'`);
             
-        } finally {
-            // D. Desactivar Loader
-            if (loaderEl) loaderEl.classList.add('oculto');
+            // Usamos la variable global 'todosLosParaderos' que ya cargaste al inicio
+            const resultadosLocales = buscarEnDatosLocales(texto, todosLosParaderos);
+
+            if (resultadosLocales.length > 0) {
+                nuevasOpciones = resultadosLocales.map(item => ({
+                    // Usamos el ID interno directamente
+                    value: item.id.toString(), 
+                    label: `🚏 ${item.nombre}`,
+                    customProperties: { esLocal: true } 
+                }));
+            }
+            
+            // 💡 AGREGAMOS EL TIP EDUCATIVO AL FINAL DE LA LISTA
+            nuevasOpciones.push({
+                value: 'tip_offline',
+                label: '💡 Tip: Sin internet, mantén presionado el mapa para elegir destino',
+                disabled: true,
+                customProperties: { tipo: 'aviso' }
+            });
         }
 
-    }, 800); 
+        // --- Manejo de "Sin resultados" (Común) ---
+        if (nuevasOpciones.length === 0 || (nuevasOpciones.length === 1 && nuevasOpciones[0].value === 'tip_offline')) {
+            nuevasOpciones.unshift({
+                value: 'no_found',
+                label: isOnline ? `🚫 Nada encontrado para "${texto}"` : `🚫 Ningún paradero llamado "${texto}"`,
+                disabled: true
+            });
+        }
 
-    selectDestino.addEventListener('search', buscadorInternet);
+        // Actualizar Choices
+        choicesDestino.setChoices(nuevasOpciones, 'value', 'label', true); 
 
-    // 3. MANEJO DE SELECCIÓN
-    selectDestino.addEventListener('change', (event) => {
-        const valor = event.detail.value;
-        if (valor.startsWith('ext_')) {
-            const opcion = choicesDestino._store.choices.find(c => c.value === valor);
-            if (opcion && opcion.customProperties.fullData) {
-                procesarSeleccionLugar(opcion.customProperties.fullData);
+    } catch (e) {
+        console.error("Error buscando:", e);
+    } finally {
+        if (loaderEl) loaderEl.classList.add('oculto');
+    }
+
+}, 500); // Un debounce un poco más rápido se siente mejor offline
+
+selectDestino.addEventListener('search', buscadorInternet);
+
+// 3. MANEJO DE SELECCIÓN (ACTUALIZADO PARA SOPORTAR PARADEROS LOCALES)
+selectDestino.addEventListener('change', (event) => {
+    const valor = event.detail.value;
+
+    // Caso A: Resultado de Internet (Nominatim)
+    if (valor.startsWith('ext_')) {
+        const opcion = choicesDestino._store.choices.find(c => c.value === valor);
+        if (opcion && opcion.customProperties.fullData) {
+            procesarSeleccionLugar(opcion.customProperties.fullData);
+        }
+    } 
+    // ⬇️ NUEVO: Caso B: Resultado Local (Paradero existente)
+    else {
+        // Si el valor es un número (índice del paradero)
+        const indexParadero = parseInt(valor);
+        if (!isNaN(indexParadero)) {
+            const paraderoSeleccionado = todosLosParaderos.find(p => p.properties.originalIndex === indexParadero);
+            
+            if (paraderoSeleccionado) {
+                console.log("Seleccionado paradero offline:", paraderoSeleccionado.properties.nombre);
+                
+                // Asignamos destino
+                paraderoFin = paraderoSeleccionado;
+                
+                // Disparamos la lógica de ruta (igual que en el clic derecho)
+                if (paraderoInicioCercano) {
+                    listaDePlanes = encontrarRutaCompleta(paraderoInicioCercano, paraderoFin, todosLosParaderos, todasLasRutas, mapRutaParaderos);
+                    mostrarPlanes(listaDePlanes);
+                    abrirPanelControl();
+                } else {
+                    // Si no hay inicio, centramos el mapa en el paradero
+                    const coords = paraderoFin.geometry.coordinates;
+                    map.setView([coords[1], coords[0]], 16);
+                    L.marker([coords[1], coords[0]], {icon: iconoDestino})
+                     .addTo(marcadores)
+                     .bindPopup(`<b>${paraderoFin.properties.nombre}</b><br>Destino seleccionado`).openPopup();
+                     
+                    instruccionesEl.innerHTML = '<p>Destino fijado. Esperando ubicación o selecciona inicio manual.</p>';
+                }
             }
         }
-    });
+    }
+});
 }
 
 function initChoicesSelectInicioManual() {
