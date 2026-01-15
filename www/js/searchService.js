@@ -49,7 +49,7 @@ function corregirErroresComunes(query) {
         "cetmar": "Calle Sixto Perez Cuevas",
         "CETMAR 02": "Calle Sixto Perez Cuevas",
         "cetmar 2": "Calle Sixto Perez Cuevas",
-        "tec":"Tecnologioo",
+        "tec":"Tecnologico",
         "Tec":"Tecnologico",
         "TEC":"Tecnologico", 
         "UAC": "Monumento Universidad Autónoma de Campeche",
@@ -62,7 +62,14 @@ function corregirErroresComunes(query) {
         "PREVO": "Escuela Secundaria Técnica No. 1",
         "SUR": "Terminal de Segunda Clase SUR",
         "sur": "Terminal de Segunda Clase SUR",
-        "papa luchon": "El Angel Maya",
+        "papa luchon": "Ángel Maya",
+        "Fiscalia": "Lopez Portillo por Tepeyac",
+        "fiscalía": "Lopez Portillo por Tepeyac",
+        "Bola de queso": "Monumentoa los 150 años de la Emancipación de Campeche",
+        "bola de queso": "Monumentoa los 150 años de la Emancipación de Campeche",
+        "Naach K'inil": "Monumentoa los 150 años de la Emancipación de Campeche",
+        
+
 
     };
 
