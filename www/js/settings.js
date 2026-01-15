@@ -1,5 +1,5 @@
 // js/settings.js
-
+import { iniciarTour } from './tour.js'; // <--- IMPORTANTE: Importar la función
 // 1. Exportamos el estado para que app.js pueda consultarlo (ej. para vibrar o no)
 export const userSettings = JSON.parse(localStorage.getItem('kooxSettings')) || {
     darkMode: false,
