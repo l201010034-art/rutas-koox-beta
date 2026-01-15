@@ -49,6 +49,13 @@ function corregirErroresComunes(query) {
         "cetmar": "Calle Sixto Perez Cuevas",
         "CETMAR 02": "Calle Sixto Perez Cuevas",
         "cetmar 2": "Calle Sixto Perez Cuevas",
+        "tec":"Tecnologioo",
+        "Tec":"Tecnologico",
+        "TEC":"Tecnologico", 
+        "UAC": "Monumento Universidad Autónoma de Campeche",
+        "uac": "Monumento Universidad Autónoma de Campeche",
+        "universidad autonoma de campeche": "monumento Universidad Autónoma de Campeche",
+        "universidad autónoma de campeche": "Monumento Universidad Autónoma de Campeche",
 
     };
 
