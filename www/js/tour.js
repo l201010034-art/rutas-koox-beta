@@ -1,9 +1,7 @@
 // js/tour.js
 
-// Exportamos la función para poder llamarla desde app.js o settings.js
 export function iniciarTour() {
     
-    // Si la librería driver.js no cargó, salimos para evitar errores
     if (!window.driver || !window.driver.js) {
         console.warn("Driver.js no está cargado.");
         return;
@@ -28,34 +26,43 @@ export function iniciarTour() {
                     align: 'center' 
                 } 
             },
-            // PASO 2: El Nuevo Buscador
+            
+            // PASO 2: El Nuevo Buscador (CORREGIDO)
             { 
                 element: '.choices__inner', 
                 popover: { 
                     title: '¿A dónde vamos?', 
-                    description: 'Escribe cualquier lugar aquí. Verás cómo aparecen opciones locales y de internet automáticamente.',
+                    description: 'Escribe aquí tu destino. Verás opciones locales y de internet.',
                     side: "bottom", 
                     align: 'center' 
                 },
-                // 🔥 AL ENTRAR: Abrimos el menú a la fuerza
+                // 🔥 AL ENTRAR: Esperamos un momento y forzamos la apertura
                 onHighlightStarted: () => {
-                    if (window.choicesDestino) {
-                        window.choicesDestino.showDropdown(); 
-                    }
+                    setTimeout(() => {
+                        if (window.choicesDestino) {
+                            // 1. Enfocamos el input (clave para móviles)
+                            window.choicesDestino.input.element.focus(); 
+                            // 2. Ordenamos abrir
+                            window.choicesDestino.showDropdown(); 
+                        }
+                    }, 300); // 300ms de espera para que termine la animación del tour
                 },
-                // 🔥 AL SALIR: Lo cerramos para que no estorbe en el siguiente paso
+                // 🔥 AL SALIR: Cerramos limpiamente
                 onDeselected: () => {
                     if (window.choicesDestino) {
                         window.choicesDestino.hideDropdown();
+                        // Quitamos el foco para cerrar teclado en móviles
+                        window.choicesDestino.input.element.blur(); 
                     }
                 }
             },
+            
             // PASO 3: Tu Ubicación
             { 
                 element: '#inputInicio', 
                 popover: { 
                     title: 'Tu Punto de Partida', 
-                    description: 'Detectamos tu GPS automáticamente. Si falla, toca aquí para elegir "Inicio Manual".',
+                    description: 'Detectamos tu GPS. Toca aquí si quieres cambiarlo manualmente.',
                     side: "top", 
                     align: 'center' 
                 } 
@@ -65,7 +72,7 @@ export function iniciarTour() {
                 element: '.bottom-nav', 
                 popover: { 
                     title: 'Modos de Viaje', 
-                    description: 'Usa "Viaje" para ir de A a B, o "Explorar" para ver rutas completas en el mapa.',
+                    description: 'Navega entre planear viaje, explorar rutas o ver tu saldo.',
                     side: "top", 
                     align: 'center' 
                 } 
@@ -74,8 +81,8 @@ export function iniciarTour() {
             { 
                 element: '#btnAjustes', 
                 popover: { 
-                    title: 'Personalización', 
-                    description: 'Activa el Modo Oscuro, letra grande o vuelve a ver este tutorial aquí.',
+                    title: 'Ajustes', 
+                    description: 'Configura el Modo Oscuro o vuelve a ver este tutorial aquí.',
                     side: "left", 
                     align: 'center' 
                 } 
@@ -86,15 +93,14 @@ export function iniciarTour() {
     tour.drive();
 }
 
-// Función para checar si es la primera vez (Auto-arranque)
 export function checkAndStartTour() {
-    // Esperamos 1.5 segundos para asegurar que el mapa y los elementos cargaron
     setTimeout(() => {
-        const tourVisto = localStorage.getItem('tour_visto_v2'); // Cambiamos a v2 para que salga de nuevo a todos
+        // Usamos 'v4' para obligar a que te salga de nuevo y pruebes los cambios
+        const tourVisto = localStorage.getItem('tour_visto_v4'); 
         
         if (!tourVisto) {
             iniciarTour();
-            localStorage.setItem('tour_visto_v3', 'true');
+            localStorage.setItem('tour_visto_v4', 'true');
         }
     }, 1500);
 }

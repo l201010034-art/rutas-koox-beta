@@ -780,31 +780,41 @@ body.dark-mode #btnIniciarRecorrido {
     color: #121212;
 }
 
-/* Estilo forzado para el botón del tutorial */
+/* Corrección: Botón de recorrido COMPACTO */
 #btnIniciarRecorrido {
-    background-color: #007bff !important; /* Azul brillante */
-    color: #ffffff !important; /* Letras blancas */
+    background-color: #007bff !important;
+    color: white !important;
     border: none;
-    padding: 12px 20px;
-    border-radius: 10px;
-    width: 100%;
-    margin-top: 15px;
+    padding: 8px 16px;       /* Menos relleno (antes era 12px 20px) */
+    border-radius: 20px;     /* Bordes más redondos (estilo chip) */
+    width: auto;             /* ⬅️ CLAVE: Ya no ocupa el 100% */
+    display: inline-flex;    /* Se ajusta al tamaño del texto */
+    margin-top: 10px;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.85rem;      /* Letra un poco más chica */
     cursor: pointer;
-    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    transition: background 0.3s;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    transition: transform 0.2s, background 0.2s;
+    float: right;            /* Lo alineamos a la derecha para que se vea pro */
 }
 
 #btnIniciarRecorrido:hover {
     background-color: #0056b3 !important;
+    transform: scale(1.05);
 }
 
-/* Icono dentro del botón */
-#btnIniciarRecorrido i {
-    font-size: 1.2rem;
+#btnIniciarRecorrido:active {
+    transform: scale(0.95);
+}
+
+/* 🚨 SOLUCIÓN PARA QUE EL MENÚ SE VEA SOBRE EL TOUR 🚨 */
+/* Esto obliga al menú desplegable a estar ENCIMA de todo el tutorial */
+.choices__list.is-active {
+    z-index: 99999999 !important; 
+}
+.driver-popover {
+    z-index: 99999990 !important;
 }
