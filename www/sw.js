@@ -1,16 +1,16 @@
 // www/sw.js...
 
-const CACHE_VERSION = 'v5.17'; // <-- ¡Subí la versión!
+const CACHE_VERSION = 'v5.18'; 
 const CACHE_NAME = `rutas-1oox-cache-${CACHE_VERSION}`;
 
 const APP_SHELL_URLS = [
     './',
     'index.html',
-    'style.min.css',      // Ahora sí existirá después del build
+    'style.min.css',      
     'manifest.json',
     'images/favicon.png',
     'images/icon-512.png',
-    'js/app.min.js',      // Ahora sí existirá después del build
+    'js/app.min.js',      
     'data/paraderos.geojson',
     'data/rutas.geojson',
 
@@ -23,14 +23,12 @@ const APP_SHELL_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
-    // El skipWaiting es clave para que no espere a que cierres la pestaña
     self.skipWaiting(); 
     
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('Abriendo caché y guardando archivos...');
-                // Usamos return para asegurar que si falla uno, se sepa
                 return cache.addAll(APP_SHELL_URLS);
             })
             .catch(err => console.error("Error al cachear archivos:", err))
@@ -42,7 +40,6 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
-                    // Borramos TODO lo que no sea la versión actual
                     if (cacheName !== CACHE_NAME) {
                         console.log('Borrando caché antigua:', cacheName);
                         return caches.delete(cacheName);

@@ -97,7 +97,7 @@ export function checkAndStartTour() {
         
         if (!tourVisto) {
             iniciarTour();
-            localStorage.setItem('tour_visto_posicion_v3', 'true');
+            localStorage.setItem('tour_visto_posicion_v4', 'true');
         }
     }, 1000);
 }
