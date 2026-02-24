@@ -91,16 +91,19 @@ function corregirErroresComunes(query) {
     return texto;
 }
 
-/* Función de Búsqueda V7: Con Autocorrector y Filtro Geográfico */
+/* Función de Búsqueda V7: Sin Cabeceras (Anti-CORS) */
 export async function buscarLugarEnNominatim(query, limit = 8) {
     
     // PASO A: APLICAR AUTOCORRECTOR
-    // Si entra "sams", sale "Sam's Club"
     let queryMejorada = corregirErroresComunes(query);
     console.log(`🧠 Autocorrector: "${query}" -> "${queryMejorada}"`);
 
     const limitInterno = 40; 
-    const baseParams = `&format=json&limit=${limitInterno}&addressdetails=1&countrycodes=mx`;
+    
+    // 🛡️ REGLA NOMINATIM: 
+    // 1. Correo oficial incluido.
+    // 2. accept-language=es incluido en la URL para evitar el uso de cabeceras bloqueadas.
+    const baseParams = `&format=json&limit=${limitInterno}&addressdetails=1&countrycodes=mx&accept-language=es&email=contacto@rutaskoox.com`;
 
     // --- INTENTO 1: BÚSQUEDA ESPECÍFICA (+ Campeche) ---
     let query1 = queryMejorada;
@@ -111,7 +114,11 @@ export async function buscarLugarEnNominatim(query, limit = 8) {
     const url1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query1)}${baseParams}&viewbox=${VIEWBOX_API}&bounded=1`;
 
     try {
+        // 🚨 ELIMINAMOS las opciones de 'headers' para que sea una petición simple y evada el CORS
         let response = await fetch(url1);
+        
+        if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+        
         let data = await response.json();
 
         // 🔍 FILTRO DURO DE COORDENADAS
@@ -126,7 +133,10 @@ export async function buscarLugarEnNominatim(query, limit = 8) {
 
         const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryMejorada)}${baseParams}&viewbox=${VIEWBOX_API}`;
         
+        // 🚨 Petición simple sin cabeceras
         response = await fetch(url2);
+        if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+        
         data = await response.json();
 
         resultadosLocales = data.filter(item => esCoordenadaLocal(item.lat, item.lon));
@@ -138,7 +148,7 @@ export async function buscarLugarEnNominatim(query, limit = 8) {
         return [];
 
     } catch (error) {
-        console.error("Error buscando lugar:", error);
+        console.error("Error buscando lugar en Nominatim:", error);
         return [];
     }
 }

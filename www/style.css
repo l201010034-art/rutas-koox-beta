@@ -918,3 +918,36 @@ body.dark-mode .marca-flotante-top {
     box-shadow: inset 0 0 0 2px var(--primary-color);
     pointer-events: none;
 }
+
+/* =========================================
+   BANNER INTELIGENTE DE ESTADO (MOTOR)
+   ========================================= */
+#banner-inteligente-koox {
+    position: absolute; 
+    top: 85px; /* Justo debajo del buscador */
+    left: 50%; 
+    transform: translateX(-50%);
+    z-index: 2000; 
+    padding: 10px 20px; 
+    border-radius: 30px;
+    font-weight: bold; 
+    font-size: 0.9em; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    width: max-content; 
+    max-width: 90%; 
+    text-align: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    opacity: 0; 
+    pointer-events: none; 
+    margin-top: -20px;
+}
+#banner-inteligente-koox.visible { 
+    opacity: 1; 
+    margin-top: 0; 
+}
+.status-critico { background: #dc3545; color: white; border: 2px solid #b02a37; }
+.status-nocturno { background: #312e81; color: #e0e7ff; border: 2px solid #4338ca; }
+.status-trafico { background: #f59e0b; color: white; border: 2px solid #d97706; }

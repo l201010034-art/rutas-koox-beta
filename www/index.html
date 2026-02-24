@@ -335,12 +335,102 @@ body.dark-mode .marca-flotante-top {
             <span class="badge-desarrollo">Pronto</span>
         </div>
     </div>
-    <div id="pantalla-recargas" class="pantalla-completa oculto">
-        <div class="placeholder-content">
-            <i class="ri-bank-card-2-line icono-grande"></i>
-            <h2>Recargas</h2>
-            <p>Función en desarrollo.</p>
-            <span class="badge-desarrollo">Pronto</span>
+
+    <div id="pantalla-recargas" class="pantalla-completa oculto" 
+        style="
+            display: block; /* Importante para el scroll */
+            padding-top: 90px; 
+            padding-bottom: 100px; /* Espacio extra para que no se corte abajo */
+            overflow-y: auto; 
+            height: 100%; 
+            box-sizing: border-box;
+            background-color: var(--secondary-bg);
+        ">
+        
+        <div style="text-align: center; margin-bottom: 25px; padding: 0 20px;">
+            <h2 style="color: var(--text-color); margin-bottom: 8px; font-size: 1.8em;">Suscripciones</h2>
+            <p style="color: #666; margin: 0; font-size: 1em;">Apoya el proyecto y desbloquea funciones.</p>
+        </div>
+
+        <div class="card-suscripcion" 
+            style="
+                background: var(--panel-bg); 
+                margin: 0 auto 30px auto; 
+                width: 85%; 
+                max-width: 380px; 
+                border-radius: 20px; 
+                padding: 30px 20px; 
+                box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
+                border: 1px solid var(--border-color); 
+                position: relative; 
+                overflow: hidden;
+            ">
+            
+            <div style="
+                position: absolute; 
+                top: 0; right: 0; 
+                background: #FFD700; 
+                color: #333; 
+                font-weight: 800; 
+                font-size: 0.65em; 
+                padding: 6px 12px; 
+                border-bottom-left-radius: 12px;
+                letter-spacing: 0.5px;
+            ">
+                MEJOR VALOR
+            </div>
+
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="font-size: 3.5em; margin-bottom: 10px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">🌟</div>
+                <h3 style="margin: 0; color: var(--primary-color); font-size: 1.4em;">Plan Padrino</h3>
+                <div style="font-size: 3em; font-weight: 800; color: var(--text-color); margin: 5px 0; letter-spacing: -1px;">
+                    $29 <span style="font-size: 0.4em; font-weight: normal; color: #888; vertical-align: middle;">MXN</span>
+                </div>
+                <p style="color: #888; font-size: 0.9em; margin: 0; font-weight: 500;">Pago único por 3 meses</p>
+            </div>
+
+            <ul style="list-style: none; padding: 0; margin: 0 auto 30px auto; color: var(--text-color); text-align: left; width: fit-content;">
+                <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; font-size: 0.95em;">
+                    <i class="ri-checkbox-circle-fill" style="color: #4CAF50; font-size: 1.3em;"></i> Navegación GPS Guiada
+                </li>
+                <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; font-size: 0.95em;">
+                    <i class="ri-checkbox-circle-fill" style="color: #4CAF50; font-size: 1.3em;"></i> Alertas de Bajada
+                </li>
+                <li style="margin-bottom: 0; display: flex; align-items: center; gap: 12px; font-size: 0.95em;">
+                    <i class="ri-heart-fill" style="color: #E91E63; font-size: 1.3em;"></i> Apoyo al Desarrollador
+                </li>
+            </ul>
+
+            <a href="https://buy.stripe.com/test_4gM7sEbSSdvU2tTbkT8og00" target="_blank" 
+            style="
+                    display: block; 
+                    background: linear-gradient(135deg, var(--primary-color), #0056b3); 
+                    color: white; 
+                    text-align: center; 
+                    padding: 16px; 
+                    border-radius: 50px; 
+                    text-decoration: none; 
+                    font-weight: 700; 
+                    font-size: 1.1em; 
+                    box-shadow: 0 8px 20px rgba(0,123,255,0.3); 
+                    transition: transform 0.2s;
+            "
+            onmousedown="this.style.transform='scale(0.96)'"
+            onmouseup="this.style.transform='scale(1)'">
+                Suscribirme Ahora
+            </a>
+            
+            <p style="text-align: center; font-size: 0.75em; color: #999; margin-top: 18px; line-height: 1.4;">
+                <i class="ri-lock-2-line" style="vertical-align: text-bottom;"></i> Pago seguro vía Stripe.<br>
+                <a href="#" style="color: #999; text-decoration: underline;">Cancelar cuando quieras</a>
+            </p>
+        </div>
+
+        <div style="text-align: center; padding: 0 20px 20px 20px;">
+            <p style="color: #888; font-size: 0.9em; margin-bottom: 5px;">¿Dudas?</p>
+            <a href="mailto:soporte@rutaskoox.com" style="color: var(--primary-color); font-weight: 600; text-decoration: none; font-size: 0.95em;">
+                Contactar Soporte
+            </a>
         </div>
     </div>
 
@@ -368,8 +458,12 @@ body.dark-mode .marca-flotante-top {
     <script src='https://unpkg.com/@turf/turf@6/turf.min.js' defer></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js" defer></script>
+    <script src="https://unpkg.com/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js" defer></script>
+    <script src="https://unpkg.com/leaflet.marker.slideto@0.2.0/Leaflet.Marker.SlideTo.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.4.0/socket.io.js" defer></script>
     <script>
         window.addEventListener('load', function() {
             setTimeout(function() {

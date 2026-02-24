@@ -1,20 +1,24 @@
 // js/settings.js
 
 import { iniciarTour } from './tour.js'; // Asegúrate de que esta línea esté arriba
+// Agrega checkTarifa a esta línea (cerca del principio de js/settings.js)
 
 // 1. Exportamos el estado
 export const userSettings = JSON.parse(localStorage.getItem('kooxSettings')) || {
     darkMode: false,
     largeText: false,
     highContrast: false,
-    vibration: true
+    vibration: true,
+    tarifaPreferencial: false // ⬅️ NUEVO: Falso = $8 (General), True = $4 (Estudiante/Inapam)
 };
 
-let checkDarkMode, checkLargeText, checkHighContrast, checkVibration;
+// Agrega checkTarifa a esta línea (cerca del principio de js/settings.js)
+let checkDarkMode, checkLargeText, checkHighContrast, checkVibration, checkTarifa;
 
 function aplicarAjustes() {
     const body = document.body;
-    // ... (Tu lógica de aplicar ajustes igual que antes) ...
+
+    if (checkTarifa) checkTarifa.checked = userSettings.tarifaPreferencial;
     // A. Modo Oscuro
     if (userSettings.darkMode) {
         body.classList.add('dark-mode');
@@ -82,6 +86,12 @@ export function initSettings() {
     if(checkLargeText) checkLargeText.addEventListener('change', (e) => guardarAjuste('largeText', e.target.checked));
     if(checkHighContrast) checkHighContrast.addEventListener('change', (e) => guardarAjuste('highContrast', e.target.checked));
     if(checkVibration) checkVibration.addEventListener('change', (e) => guardarAjuste('vibration', e.target.checked));
+
+    checkTarifa = document.getElementById('checkTarifa'); // ✅ SIN "const" ni "let"
+        if (checkTarifa) {
+            checkTarifa.checked = userSettings.tarifaPreferencial;
+            checkTarifa.addEventListener('change', (e) => guardarAjuste('tarifaPreferencial', e.target.checked));
+        }
 
     aplicarAjustes();
 }

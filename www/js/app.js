@@ -17,9 +17,14 @@ import { KeepAwake } from '@capacitor-community/keep-awake'; // CORRECTO
 import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Dialog } from '@capacitor/dialog';
+import { iniciarSesion, monitorEstadoAuth, getUsuario } from './authService.js';
+import { verificarEstadoPremium, isUserPremium, mostrarMensajeIndie } from './subscriptionService.js';
 import { buscarLugarEnNominatim, categoriasRapidas, sitiosTuristicos,buscarEnDatosLocales} from './searchService.js';
-
+import { procesarETAMasivo, limpiarETAs } from './etaService.js';
+import { esBusVisible } from './privacyService.js';
 import { iniciarTour, checkAndStartTour } from './tour.js';
+import { iniciarMotorInteligente, detenerMotorInteligente, registrarLatidoBusMotor } from './statusEngine.js';
+
 async function mantenerPantallaEncendida() {
     try {
         await KeepAwake.keepAwake();
@@ -85,6 +90,42 @@ async function solicitarPermisosIniciales() {
     } catch (error) {
         console.error('Error al solicitar permisos:', error);
     }
+}
+let socketVinden = null; // Guardará la conexión al satélite
+let socketsVindenMulti = []; // ⏱️ NUEVO: Guardará el escuadrón de conexiones múltiples
+
+// Diccionario EXACTO alineado con la base de datos oficial de Vinden
+const mapaIdsVinden = {
+    'koox-01': '233',
+    'koox-02': '218',
+    'koox-03': '219',
+    'koox-04': '220',
+    'koox-05': '221',
+    'koox-06': '222',
+    'koox-07': '223',
+    'koox-08': '234',
+    'koox-10': '236',
+    'koox-11': '237',
+    'koox-12': '238',
+    'koox-13': '232',
+    'koox-14': '239',
+    'koox-15': '224',
+    'koox-16': '225',
+    'koox-17': '226',
+    'koox-19': '241',
+    'koox-20': '242',
+    'koox-21': '227',
+    'koox-22': '228',
+    'koox-23': '229',
+    'koox-24': '247',
+    'koox-25': '230',
+    'koox-26': '243',
+    'koox-27': '244'
+};
+
+function obtenerIdVinden(kooxId) {
+    if (!kooxId) return null;
+    return mapaIdsVinden[kooxId] || null;
 }
 
 // ⬇️⬇️ CORRECCIÓN 2: Módulo Firebase (movido aquí) ⬇️⬇️
@@ -237,8 +278,7 @@ function actualizarDisplayAlertas() {
 
 // --- 4. ARRANQUE DE LA APP ---
 document.addEventListener('DOMContentLoaded', async () => {
-    // ... tus otras variables ...
-    // ... otros listeners ...
+
 
     // Listener para el botón de prueba
     const btnTest = document.getElementById('btnTestSimulador');
@@ -395,7 +435,7 @@ const btnMinimizarNav = document.getElementById('btnMinimizarNav');
     if (controlSelectInicio) {
         controlSelectInicio.style.display = 'none';
     }
-    
+    // En tu función de inicio (init o DOMContentLoaded)
     initMap();
 
     // --- A. INICIALIZAR CHIPS DE CATEGORÍAS ---
@@ -458,6 +498,26 @@ if (btnBuscarLugar) {
     map.on('click', () => {
         minimizarPaneles();
     });
+
+// ... dentro de DOMContentLoaded ...
+    
+    // --- NUEVO: Monitoreo de Usuario y Suscripción ---
+    monitorEstadoAuth(async (user) => {
+        if (user) {
+            // Si el usuario existe, verificamos si pagó
+            await verificarEstadoPremium(user.uid);
+        } else {
+            console.log("App iniciada en modo invitado");
+        }
+    });
+
+    // Exponemos la función global para redireccionar desde el Modal Indie
+    window.app = window.app || {};
+    window.app.irASeccionRecargas = () => {
+        // Simulamos clic en el botón de navegación inferior
+        const btnRecargas = document.querySelector('.nav-item[data-target="recargas"]');
+        if (btnRecargas) btnRecargas.click();
+    };
     
 
     // js/app.js (en DOMContentLoaded, después de initMap())
@@ -788,7 +848,7 @@ const buscadorInternet = debounce(async (event) => {
         if (loaderEl) loaderEl.classList.add('oculto');
     }
 
-}, 500); // Un debounce un poco más rápido se siente mejor offline
+}, 1200); // Un debounce un poco más rápido se siente mejor offline
 
 selectDestino.addEventListener('search', buscadorInternet);
 
@@ -1025,12 +1085,25 @@ function handleExplorarRuta(rutaId) {
     const paraderosArray = paraderosSet ? [...paraderosSet] : [];
 
     dibujarRutaExplorar(ruta, paraderosArray);
-    actualizarDisplayAlertas(); // Re-evalúa la alerta para la nueva ruta seleccionada
-    iniciarEscuchaBuses(rutaId, null); // Inicia escucha de buses para esta ruta
-    instruccionesExplorarEl.innerHTML = `
-        <p>Mostrando <strong>${ruta.properties.id}</strong>.</p>
-        <p>Esta ruta tiene aproximadamente <strong>${paraderosArray.length}</strong> paraderos.</p>
+    actualizarDisplayAlertas(); 
+
+    // ⏱️ Generamos una lista bonita con los contenedores de ETA
+    let html = `
+        <p>Mostrando ruta <strong>${ruta.properties.id}</strong>.</p>
+        <ul style="padding-left: 20px; max-height: 40vh; overflow-y: auto; font-size: 0.95em;">
     `;
+    paraderosArray.forEach(p => {
+        const pid = p.properties.originalIndex;
+        html += `<li style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                    ${p.properties.nombre}
+                    <div class="eta-live-badge eta-contenedor-${pid}"></div>
+                 </li>`;
+    });
+    html += `</ul>`;
+    instruccionesExplorarEl.innerHTML = html;
+
+    // Pasamos el array de paraderos al radar
+    iniciarEscuchaBuses(rutaId, null, paraderosArray); 
 }
 
 // ⬇️ MODIFICADO: Ahora el HTML se inserta en 'panel-instrucciones' ⬇️
@@ -1241,6 +1314,7 @@ function mostrarPlanes(planes) {
     
     btnLimpiar.style.display = 'block';
     btnIniciarRuta.style.display = 'none'; 
+
 }
 // js/app.js
 
@@ -1339,6 +1413,22 @@ const seleccionarPlan = (indice) => {
     
     btnIniciarRuta.style.display = 'none'; 
     dibujarPlan([rutaCompletaPlan]);
+
+    // 🚀 NUEVO: EL ESCÁNER DE VIAJE (PRE-FLIGHT CHECK)
+    // Extraemos todas las rutas que el usuario va a necesitar
+    const busesDelViaje = rutaCompletaPlan.filter(p => p.tipo === 'bus');
+    const rutasIdsDelViaje = busesDelViaje.map(p => p.ruta.properties.id);
+    
+    if (rutasIdsDelViaje.length > 0) {
+        // Le avisamos al motor cuáles rutas vamos a vigilar
+        iniciarMotorInteligente(rutasIdsDelViaje);
+        
+        // Recopilamos los paraderos de subida para que también calcule los ETAs
+        const paraderosSubida = busesDelViaje.map(p => p.paraderoInicio);
+        
+        // Disparamos el escuadrón multihilo
+        iniciarEscuchaMultihilo(rutasIdsDelViaje, paraderosSubida);
+    }
 }
 
 function encontrarParaderoMasCercano(punto) {
@@ -1353,6 +1443,23 @@ function encontrarParaderoMasCercano(punto) {
 function iniciarRutaProgresiva() {
     if (!rutaCompletaPlan || rutaCompletaPlan.length === 0) return;
 
+    // --- 🔒 BLOQUEO PREMIUM 🔒 ---
+    const user = getUsuario();
+    const esPro = isUserPremium();
+
+    if (!user) {
+        // Caso 1: No está logueado
+        if(confirm("Para usar la navegación GPS necesitas guardar tu progreso. ¿Iniciar sesión con Google?")) {
+            iniciarSesion();
+        }
+        return; // Detenemos la función aquí
+    }
+
+    if (!esPro) {
+        // Caso 2: Logueado pero NO pagó -> Mostrar Modal de Venta
+        mostrarMensajeIndie();
+        return; // Detenemos la función aquí
+    }
 // ⬇️⬇️ INICIO DEL NUEVO MÓDULO DE HISTORIAL (CORREGIDO) ⬇️⬇️
     try {
         const rutaResumen = rutaCompletaPlan.filter(p => p.tipo === 'bus').map(p => p.ruta.properties.id).join(' → ');
@@ -1953,8 +2060,7 @@ function handleFavoritoDelete(event) {
 }
 
 /**
- * (MÓDULO ACTUALIZADO) Busca y muestra los 5 paraderos más cercanos
- * a la ubicación del usuario, usando los NUEVOS ICONOS.
+ * (MÓDULO ACTUALIZADO) Busca paraderos cercanos e inicia ETA en tiempo real.
  */
 function handleParaderosCercanos() {
     if (!puntoInicio) {
@@ -1962,9 +2068,7 @@ function handleParaderosCercanos() {
         return;
     }
 
-    console.log("Buscando paraderos cercanos...");
-
-    // 1. Limpiar el mapa y controles
+    console.log("Buscando paraderos cercanos y preparando ETAs...");
     limpiarCapasDeRuta(); 
     marcadores.clearLayers(); 
     if (choicesRuta) {
@@ -1972,63 +2076,68 @@ function handleParaderosCercanos() {
         choicesRuta.removeActiveItems();
     }
 
-    // 2. Calcular distancias
     const paraderosConDistancia = todosLosParaderos.map(paradero => {
         const distancia = turf.distance(puntoInicio, paradero, { units: 'meters' });
         return { paradero, distancia };
     });
 
-    // 3. Ordenar y tomar los 5 más cercanos
     const paraderosCercanos = paraderosConDistancia
         .sort((a, b) => a.distancia - b.distancia)
         .slice(0, 5);
 
-    // 4. Dibujar marcadores y preparar lista para el panel
     const marcadoresDeParaderos = [];
-    let htmlInstrucciones = '<p><strong>Paraderos más cercanos a ti:</strong></p><ol style="padding-left: 20px;">';
+    let htmlInstrucciones = '<p><strong>Paraderos cercanos a ti:</strong></p><ul style="padding-left: 10px; list-style:none; font-size: 0.95em;">';
+
+    // ⏱️ Recolectaremos todas las rutas únicas que pasan por estos 5 paraderos
+    let rutasUnicasSet = new Set();
 
     paraderosCercanos.forEach(item => {
         const coords = item.paradero.geometry.coordinates;
         const latLng = [coords[1], coords[0]];
         const nombre = item.paradero.properties.nombre;
         const dist = item.distancia.toFixed(0);
+        const pid = item.paradero.properties.originalIndex;
 
-        // Añadir a la lista HTML
-        htmlInstrucciones += `<li style="margin-bottom: 5px;">${nombre} (aprox. ${dist} m)</li>`;
+        // Recolectar rutas de este paradero
+        const rutasDelParadero = item.paradero.properties.rutas || [];
+        rutasDelParadero.forEach(r => rutasUnicasSet.add(r));
+
+        // Añadir a la lista HTML con su contenedor ETA
+        htmlInstrucciones += `
+            <li style="margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+                <div style="font-weight:bold; color:#0056b3;"><i class="ri-map-pin-user-line"></i> ${nombre}</div>
+                <div style="font-size:0.85em; color:#666; margin-bottom: 4px;">A ${dist} metros de ti</div>
+                <div class="eta-live-badge eta-contenedor-${pid}"></div>
+            </li>
+        `;
         
-        // --- AQUÍ ESTABA EL ERROR, AHORA CORREGIDO ---
-        
-        // Usamos el MISMO estilo visual que el resto de la app
         const icono = L.divIcon({
-            className: 'icono-mapa-bus', // <--- ¡Esta es la clase del cuadro blanco con borde azul!
+            className: 'icono-mapa-bus', 
             html: '<i class="ri-bus-fill"></i>',
-            iconSize: [24, 24], // Un poquitín más chico para no saturar
-            iconAnchor: [12, 12],
-            popupAnchor: [0, -12]
+            iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12]
         });
 
-        // Crear el contenido del Popup
-        const popupHTML = crearPopupInteligente(item.paradero);
-
-        // Crear el marcador
-        const marker = L.marker(latLng, { icon: icono })
-                .bindPopup(popupHTML);
-        
+        const marker = L.marker(latLng, { icon: icono }).bindPopup(crearPopupInteligente(item.paradero));
         marker.addTo(marcadores); 
         marcadoresDeParaderos.push(marker);
     });
 
-    htmlInstrucciones += '</ol>';
+    htmlInstrucciones += '</ul>';
     instruccionesExplorarEl.innerHTML = htmlInstrucciones;
 
-    // 5. Centrar el mapa en el usuario y los paraderos
     const userMarker = crearMarcadorUsuario(puntoInicio.geometry.coordinates.slice().reverse());
     const group = L.featureGroup([userMarker, ...marcadoresDeParaderos]);
-    
     if (group.getBounds().isValid()) {
         map.fitBounds(group.getBounds().pad(0.2));
     }
     abrirPanelControl();
+
+    // ⏱️ DISPARAMOS EL RADAR MULTIHILO PARA ESTAS RUTAS
+    const rutasArray = Array.from(rutasUnicasSet);
+    if (rutasArray.length > 0) {
+        console.log(`Desplegando radar para ${rutasArray.length} rutas cercanas:`, rutasArray);
+        iniciarEscuchaMultihilo(rutasArray, paraderosCercanos);
+    }
 }
 
 /**
@@ -2159,17 +2268,27 @@ async function handleEnviarReporte(tipo) {
     }
 }
 
-/**
- * (NUEVO) Detiene la escucha de buses en vivo
- */
-function detenerEscuchaBuses() {
+export function detenerEscuchaBuses() {
     if (firestoreListenerUnsubscribe) {
-        firestoreListenerUnsubscribe(); // Se desconecta de Firestore
+        firestoreListenerUnsubscribe(); 
         firestoreListenerUnsubscribe = null;
-        console.log("Escucha de buses en vivo DETENIDA.");
     }
-    limpiarCapaBuses(); // Limpia los iconos de buses del mapa
-    mostrarInfoETA(null); // Oculta el panel de ETA
+    // Silenciamos y desconectamos la ruta única
+    if (socketVinden) {
+        socketVinden.disconnect();
+        socketVinden = null;
+    }
+    // Silenciamos y desconectamos el escuadrón multihilo
+    if (socketsVindenMulti.length > 0) {
+        socketsVindenMulti.forEach(s => s.disconnect());
+        socketsVindenMulti = [];
+    }
+    
+    limpiarCapaBuses(); 
+    mostrarInfoETA(null); 
+    limpiarETAs(); // 🧹 Limpia los ETAs del motor (importado de etaService.js)
+    detenerMotorInteligente(); // 🧠 Apagamos el motor
+    console.log("🛑 Escucha de buses DETENIDA. Memoria liberada.");
 }
 
 /**
@@ -2203,112 +2322,228 @@ function mostrarInfoETA(info) {
  * @param {string} filtroRutaId - El ID de la ruta que queremos ver (ej. 'koox-06')
  * @param {object} paraderoDeInteres - El paradero GeoJSON donde esperamos el bus
  */
-function iniciarEscuchaBuses(filtroRutaId, paraderoDeInteres) {
-    if (!dbGestion) {
-        console.error("Firebase (Gestión) no está inicializado.");
+/**
+ * (ACTUALIZADO - VERSIÓN VINDEN DIRECTO) 
+ * Inicia la escucha de buses saltándose Firebase
+ */
+export function iniciarEscuchaBuses(filtroRutaId, paraderoDeInteres, paraderosMasivos = null) {
+    // 1. Limpiamos conexiones previas
+    detenerEscuchaBuses(); 
+    
+    if (filtroRutaId) {
+        iniciarMotorInteligente(filtroRutaId); 
+    }
+
+    // 2. Buscamos el ID de Vinden (usando el automático puro)
+    const idVinden = obtenerIdVinden(filtroRutaId);
+
+    if (!idVinden) {
+        console.log(`⚠️ La ruta ${filtroRutaId} aún no tiene ID de Vinden configurado.`);
+        mostrarInfoETA(null);
         return;
     }
-    
-    // Detenemos cualquier escucha anterior
-    detenerEscuchaBuses();
-    
-    // 1. Definimos la consulta a Firestore
-    let query = dbGestion.collection('live_locations');
-    
-    // ¡LA MAGIA DEL FILTRO!
-    if (filtroRutaId) {
-        query = query.where('routeId', '==', filtroRutaId);
-        console.log(`Iniciando escucha de buses SOLO para la ruta: ${filtroRutaId}`);
+
+    console.log(`📡 Iniciando conexión directa a Vinden para ruta: ${filtroRutaId} (ID Vinden: ${idVinden})`);
+
+    // 3. Conectamos al WebSocket de Vinden
+    if (!socketVinden) {
+        socketVinden = io('wss://socketio.campeche.vinden.cloud/app', {
+            transports: ['websocket'],
+            query: { r: '977', EIO: '3', transport: 'websocket' } // Puerto de enlace
+        });
+        
+        socketVinden.on('connect', () => {
+            console.log('✅ Conectado al satélite Vinden');
+            socketVinden.emit('change-route', idVinden);
+        });
     } else {
-        // Esto no debería pasar según nuestra lógica, pero es un seguro.
-        console.log("Iniciando escucha de TODOS los buses (modo global)");
+        // Si ya está conectado, solo cambiamos de canal
+        socketVinden.emit('change-route', idVinden);
     }
 
-    // 2. Nos conectamos con onSnapshot
-    firestoreListenerUnsubscribe = query.onSnapshot((snapshot) => {
-        let approachingBuses = []; // Buses que vienen hacia nosotros
-        const rutaGeoJSON = todasLasRutas.find(r => r.properties.id === filtroRutaId);
-
-        snapshot.docChanges().forEach((change) => {
-            const unidadId = change.doc.id;
-            const data = change.doc.data();
-
-            if (change.type === 'added' || change.type === 'modified') {
-                if (!data.lat || !data.lng || !data.routeId) return;
-                
-                // Dibuja o mueve el bus en el mapa
-                actualizarMarcadorBus(unidadId, data.routeId, [data.lat, data.lng]);
-                
-                // 3. Lógica de cálculo de ETA (si aplica)
-                if (paraderoDeInteres && rutaGeoJSON) {
-                    try {
-                        const busPunto = turf.point([data.lng, data.lat]);
-                        
-                        // Proyectamos el bus y la parada sobre la línea de la ruta
-                        const puntoBusEnRuta = turf.nearestPointOnLine(rutaGeoJSON, busPunto);
-                        const puntoParaderoEnRuta = turf.nearestPointOnLine(rutaGeoJSON, paraderoDeInteres.geometry.coordinates);
-                        
-                        // Obtenemos la distancia (en km) a lo largo de la línea
-                        const distBus = puntoBusEnRuta.properties.location;
-                        const distParadero = puntoParaderoEnRuta.properties.location;
-                        
-                        const distanciaRelativaKm = distParadero - distBus;
-
-                        // Si la distancia es > 0, el bus aún no ha pasado
-                        if (distanciaRelativaKm > 0.01) { // 10 metros de margen
-                            
-                            // Cortamos el pedazo de ruta que le falta
-                            const tramoFaltante = turf.lineSlice(puntoBusEnRuta, puntoParaderoEnRuta, rutaGeoJSON);
-                            const distanciaMetros = turf.length(tramoFaltante, { units: 'meters' });
-                            
-                            approachingBuses.push({
-                                id: unidadId,
-                                distanciaMetros: distanciaMetros,
-                                speed: data.speed || 0 // Velocidad en m/s
-                            });
-                        }
-                    } catch (e) { console.error("Error calculando ETA con Turf:", e); }
-                }
-                
-            } else if (change.type === 'removed') {
-                // El bus terminó turno
-                removerMarcadorBus(unidadId);
-            }
-        }); // Fin forEach docChanges
-
-        // 4. Decidimos cuál es el bus más cercano
-        if (approachingBuses.length > 0) {
-            // Ordenamos por distancia (el más cercano primero)
-            approachingBuses.sort((a, b) => a.distanciaMetros - b.distanciaMetros);
-            const nextBus = approachingBuses[0];
-            
-            let etaMinutos = null;
-            // Calculamos ETA solo si el bus se está moviendo (más de 3.6 km/h)
-            if (nextBus.speed > 1.0) { 
-                etaMinutos = Math.round((nextBus.distanciaMetros / nextBus.speed) / 60);
-            }
-            
-            mostrarInfoETA({ 
-                id: nextBus.id, 
-                etaMinutos: etaMinutos, 
-                distanciaMetros: nextBus.distanciaMetros 
-            });
-            
-        } else if (paraderoDeInteres) {
-            // No hay buses aproximándose
-            mostrarInfoETA({ id: 'N/A', etaMinutos: null, distanciaMetros: 999999 }); // Mostramos "No hay buses"
-            document.getElementById('eta-info').innerHTML = '<p>No hay buses de esta ruta aproximándose a tu parada.</p>';
-        } else {
-            // Estamos en modo explorar (sin ETA), ocultamos el panel
-            mostrarInfoETA(null);
+    const rutaGeoJSON = todasLasRutas.find(r => r.properties.id === filtroRutaId);
+    
+    // 💡 SOLUCIÓN AL ERROR TURF.JS: "Aplanar" MultiLineString a LineString
+    let rutaParaTurf = rutaGeoJSON;
+    if (rutaGeoJSON && rutaGeoJSON.geometry && rutaGeoJSON.geometry.type === 'MultiLineString') {
+        try {
+            // Unimos todos los fragmentos en una sola línea continua
+            const coordenadasUnidas = rutaGeoJSON.geometry.coordinates.flat();
+            rutaParaTurf = turf.lineString(coordenadasUnidas);
+        } catch (e) {
+            console.warn("No se pudo aplanar la ruta para el cálculo de ETA.");
         }
+    }
+    
+    let approachingBusesMap = new Map(); 
 
-    }, (error) => {
-        console.error("Error en escucha de Firestore:", error);
-    });
+// 4. El Radar Interceptor (La Magia + Invisibilidad)
+    const originalOnEvent = socketVinden.onevent;
+    socketVinden.onevent = function (packet) {
+        const args = packet.data || [];
+        
+        if (args[0] === 'update-location' && args[1] && args[1].data) {
+            try {
+                const bus = JSON.parse(args[1].data);
+                const unidadId = bus.unit_id;
+                const lat = parseFloat(bus.latlng[0]);
+                const lng = parseFloat(bus.latlng[1]);
+                
+                const speedKmH = parseFloat(bus.speed) || 0;
+                const velocidadReal = bus.status === 5 ? 0 : (speedKmH / 3.6); 
+
+// --- 🛡️ INICIO GEOCERCA Y ETA MASIVO 🛡️ ---
+                let busVisible = true;
+                const busPunto = turf.point([lng, lat]);
+
+                if (rutaParaTurf) {
+                    busVisible = esBusVisible(busPunto, rutaParaTurf);
+                }
+
+                if (busVisible) {
+                    actualizarMarcadorBus(bus, filtroRutaId);
+                    
+                    // 🧠 Alimentamos el motor con el latido de este camión
+                    // Ahora le mandamos la velocidad matemática corregida
+                    registrarLatidoBusMotor(unidadId, bus.velocidadCalculada, filtroRutaId);
+                    
+                    // ⏱️ ETA MASIVO
+                    if (paraderosMasivos && paraderosMasivos.length > 0) {
+                        procesarETAMasivo(bus, busPunto, rutaParaTurf, paraderosMasivos, filtroRutaId);
+                    }
+                } else {
+                    removerMarcadorBus(unidadId); 
+                    originalOnEvent.call(this, packet);
+                    return; 
+                }
+                // --- 🛡️ FIN GEOCERCA Y ETA MASIVO 🛡️ ---
+
+                // 5. CÁLCULO DE ETA CON LA RUTA "APLANADA" (rutaParaTurf)
+                if (paraderoDeInteres && rutaParaTurf) {
+                    const puntoBusEnRuta = turf.nearestPointOnLine(rutaParaTurf, busPunto);
+                    const puntoParaderoEnRuta = turf.nearestPointOnLine(rutaParaTurf, paraderoDeInteres.geometry.coordinates);
+                    
+                    const distBus = puntoBusEnRuta.properties.location;
+                    const distParadero = puntoParaderoEnRuta.properties.location;
+                    const distanciaRelativaKm = distParadero - distBus;
+
+                    if (distanciaRelativaKm > 0.01) { 
+                        const tramoFaltante = turf.lineSlice(puntoBusEnRuta, puntoParaderoEnRuta, rutaParaTurf);
+                        const distanciaMetros = turf.length(tramoFaltante, { units: 'meters' });
+                        
+                        approachingBusesMap.set(unidadId, {
+                            id: bus.unit_number || unidadId, 
+                            distanciaMetros: distanciaMetros,
+                            speed: velocidadReal
+                        });
+                    } else {
+                        approachingBusesMap.delete(unidadId);
+                    }
+                    
+                    const approachingBuses = Array.from(approachingBusesMap.values());
+                    
+                    if (approachingBuses.length > 0) {
+                        approachingBuses.sort((a, b) => a.distanciaMetros - b.distanciaMetros);
+                        const nextBus = approachingBuses[0];
+                        
+                        let etaMinutos = null;
+                        if (nextBus.speed > 1.0) { 
+                            etaMinutos = Math.round((nextBus.distanciaMetros / nextBus.speed) / 60);
+                        }
+                        
+                        mostrarInfoETA({ 
+                            id: nextBus.id, 
+                            etaMinutos: etaMinutos, 
+                            distanciaMetros: nextBus.distanciaMetros 
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Error procesando telemetría de Vinden:", e);
+            }
+        }
+        originalOnEvent.call(this, packet); 
+    };
 }
 
-// js/app.js
+/**
+ * ⏱️ INICIA ESCUCHA MULTIHILO (Para Paraderos Cercanos)
+ * Escucha múltiples rutas simultáneamente y calcula el ETA para varios paraderos.
+ */
+export function iniciarEscuchaMultihilo(rutasIds, paraderosDeInteres) {
+    detenerEscuchaBuses(); // Limpia sockets y mapa previos
+    if (rutasIds && rutasIds.length > 0) {
+        iniciarMotorInteligente(rutasIds);
+    }
+
+    const paraderosLimpios = paraderosDeInteres.map(item => item.paradero ? item.paradero : item);
+
+    rutasIds.forEach((rutaId, index) => {
+        const idVinden = obtenerIdVinden(rutaId);
+        if (!idVinden) return;
+
+        // Escalonamos la conexión (300ms) para no ahogar la red del celular
+        setTimeout(() => {
+            const unSocket = io('wss://socketio.campeche.vinden.cloud/app', {
+                transports: ['websocket'],
+                query: { r: '977', EIO: '3', transport: 'websocket' },
+                forceNew: true 
+            });
+
+            unSocket.on('connect', () => {
+                unSocket.emit('change-route', idVinden);
+            });
+
+            // Aplanamos la ruta para la matemática de Turf.js
+            const rutaGeoJSON = todasLasRutas.find(r => r.properties.id === rutaId);
+            let rutaParaTurf = rutaGeoJSON;
+            if (rutaGeoJSON && rutaGeoJSON.geometry && rutaGeoJSON.geometry.type === 'MultiLineString') {
+                try {
+                    const coordUnidas = rutaGeoJSON.geometry.coordinates.flat();
+                    rutaParaTurf = turf.lineString(coordUnidas);
+                } catch(e){}
+            }
+
+            const originalOnEvent = unSocket.onevent;
+            unSocket.onevent = function (packet) {
+                const args = packet.data || [];
+                if (args[0] === 'update-location' && args[1] && args[1].data) {
+                    try {
+                        const bus = JSON.parse(args[1].data);
+                        const lat = parseFloat(bus.latlng[0]);
+                        const lng = parseFloat(bus.latlng[1]);
+                        const unidadId = bus.unit_id; // ⬅️ FALTABA ESTO
+                        
+                        // 🛡️ Filtro de Privacidad
+                        const busPunto = turf.point([lng, lat]);
+                        let busVisible = true;
+                        if (rutaParaTurf) {
+                            busVisible = esBusVisible(busPunto, rutaParaTurf);
+                        }
+
+                        if (busVisible) {
+                            // 🔥 CORRECCIÓN: Ahora le pasamos el objeto 'bus' completo
+                            actualizarMarcadorBus(bus, rutaId);
+                            // Ahora le mandamos la velocidad matemática corregida
+                            registrarLatidoBusMotor(unidadId, bus.velocidadCalculada, rutaId);      
+
+                            // ⏱️ ETA MASIVO
+                            if (paraderosLimpios.length > 0 && rutaParaTurf) {
+                                procesarETAMasivo(bus, busPunto, rutaParaTurf, paraderosLimpios, rutaId);
+                            }
+                        } else {
+                            removerMarcadorBus(unidadId); // ⬅️ CORREGIDO
+                        }
+                    } catch (e) {}
+                }
+                originalOnEvent.call(this, packet);
+            };
+            
+            socketsVindenMulti.push(unSocket);
+
+        }, index * 300);
+    });
+}
 
 /**
  * (NUEVO) Revisa el paso actual y decide si debe
